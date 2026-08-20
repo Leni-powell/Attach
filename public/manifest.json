@@ -1,0 +1,18 @@
+{
+  "name": "Attach - Reportabilidad inteligente",
+  "short_name": "Attach",
+  "description": "Attach: Reportabilidad inteligente. Progressive Web App para supervisión e inspecciones técnicas en terreno, offline-first.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F7FA",
+  "theme_color": "#5E5365",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

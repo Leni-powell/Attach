@@ -1,0 +1,6 @@
+{
+  "name": "Attach",
+  "description": "Attach: Reportabilidad inteligente. Progressive Web App para supervisión e inspecciones técnicas en terreno, offline-first.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

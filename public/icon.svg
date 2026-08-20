@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F3F4F6" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" stroke="#E5E7EB" stroke-width="8" />
+  
+  <!-- Top Diamond -->
+  <polygon points="256,40 288,76 256,112 224,76" fill="#6E5677" />
+
+  <!-- Left Crosshair Bar -->
+  <rect x="52" y="235" width="48" height="30" rx="4" fill="#6E5677" />
+
+  <!-- Right Crosshair Bar -->
+  <rect x="412" y="235" width="48" height="30" rx="4" fill="#6E5677" />
+
+  <!-- Left Teal Circle & Stem -->
+  <circle
+    cx="192"
+    cy="250"
+    r="95"
+    stroke="#008E76"
+    stroke-width="34"
+    fill="none"
+  />
+  <!-- Stem lower left -->
+  <path
+    d="M97 250 L97 345 L132 345 L132 310"
+    stroke="#008E76"
+    stroke-width="34"
+    stroke-linecap="square"
+    stroke-linejoin="miter"
+    fill="none"
+  />
+  <!-- Central bridge connector -->
+  <path
+    d="M192 155 L320 155"
+    stroke="#008E76"
+    stroke-width="34"
+    stroke-linecap="round"
+  />
+
+  <!-- Right Teal Circle -->
+  <circle
+    cx="320"
+    cy="250"
+    r="95"
+    stroke="#008E76"
+    stroke-width="34"
+    fill="none"
+  />
+
+  <!-- Left Inner Purple Dot -->
+  <circle cx="192" cy="250" r="35" fill="#6E5677" />
+
+  <!-- Right Inner Purple Dot -->
+  <circle cx="320" cy="250" r="35" fill="#6E5677" />
+
+  <!-- Right outer accent arc -->
+  <path
+    d="M428 215 A 100 100 0 0 1 428 285"
+    stroke="#6E5677"
+    stroke-width="24"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- ATTACH wordmark -->
+  <text x="256" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="52" fill="#0F172A" letter-spacing="4">ATTACH</text>
+  <text x="256" y="456" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="600" font-size="22" fill="#334155">Reportabilidad inteligente</text>
+</svg>
