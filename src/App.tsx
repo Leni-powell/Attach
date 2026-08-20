@@ -397,6 +397,7 @@ export default function App() {
         <InspectionDetailModal
           inspection={selectedInspection}
           isOpen={isDetailModalOpen}
+          currentUser={user}
           onClose={() => {
             setIsDetailModalOpen(false);
             setSelectedInspection(null);

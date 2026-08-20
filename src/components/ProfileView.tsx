@@ -64,8 +64,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
       {/* Profile Card */}
       <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#0057B8] to-[#FF6B00] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white dark:border-slate-800 shrink-0">
-            {user.name.charAt(0)}
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#5E5365] to-[#CC8B79] text-white flex items-center justify-center font-black text-2xl shadow-md border-2 border-white dark:border-slate-800 shrink-0">
+            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -74,12 +74,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </h2>
               <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
             </div>
-            <p className="text-xs font-semibold text-[#0057B8] dark:text-blue-400">
+            <p className="text-xs font-semibold text-[#5E5365] dark:text-[#CC8B79]">
               {user.role}
             </p>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400 mt-1">
               <span>{user.email}</span>
-              {user.rut && <span>• RUT: {user.rut}</span>}
             </div>
           </div>
         </div>

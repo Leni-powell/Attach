@@ -422,10 +422,6 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
     sigY + 19,
     { align: 'center' }
   );
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(135, 119, 140);
-  doc.text(`RUT: ${signedInsp?.signature?.rut || '15.489.321-K'}`, sigX + 22, sigY + 23, { align: 'center' });
 
   return doc;
 }
@@ -669,10 +665,6 @@ export function buildSingleInspectionPdfDocument(inspection: Inspection): jsPDF 
     sigY + 20,
     { align: 'center' }
   );
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(135, 119, 140);
-  doc.text(`RUT: ${inspection.signature?.rut || '15.489.321-K'}`, sigX + 22, sigY + 24, { align: 'center' });
 
   return doc;
 }
@@ -918,7 +910,6 @@ export function generateConsolidatedHtmlReport(inspections: Inspection[]): strin
         <div style="text-align: center; width: 200px;">
           <div style="border-bottom: 1px solid #5E5365; height: 35px;"></div>
           <div style="font-weight: bold; font-size: 11px; margin-top: 4px; color: #38303B;">Jefatura de Supervisión Attach</div>
-          <div style="font-size: 9px; color: #87778c;">RUT: 15.489.321-K</div>
         </div>
       </div>
     </body>
@@ -1074,9 +1065,6 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
             inspection.signature?.supervisorName
               ? inspection.signature.supervisorName.replace(/iaptidud/gi, 'Attach')
               : 'Supervisor Attach'
-          }</div>
-          <div style="font-size: 9px; color: #87778c;">RUT: ${
-            inspection.signature?.rut || '15.489.321-K'
           }</div>
         </div>
       </div>

@@ -18,7 +18,7 @@ import {
   Cog,
   Eye
 } from 'lucide-react';
-import { ChecklistItem, Evidence, Finding, Inspection, InspectionStatus } from '../types';
+import { ChecklistItem, Evidence, Finding, Inspection, InspectionStatus, UserSession } from '../types';
 import { SignatureCanvas } from './SignatureCanvas';
 import { FindingModal } from './FindingModal';
 import { EvidenceModal } from './EvidenceModal';
@@ -31,6 +31,7 @@ interface InspectionDetailModalProps {
   onUpdate: (updated: Inspection) => void;
   onDelete?: (id: string) => void;
   onExportReport: (inspection: Inspection) => void;
+  currentUser?: UserSession;
 }
 
 export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
@@ -39,7 +40,8 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
   onClose,
   onUpdate,
   onDelete,
-  onExportReport
+  onExportReport,
+  currentUser
 }) => {
   const [activeTab, setActiveTab] = useState<'checklist' | 'findings' | 'evidences' | 'signature'>('checklist');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -203,14 +205,15 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
   const handleSaveSignature = (dataUrl: string) => {
     // Complete checklist points and finalize status as completada upon signing
     const updatedChecklist = inspection.checklist.map((i) => ({ ...i, completed: true }));
+    const signerName = currentUser?.name || 'Supervisor Attach';
+
     onUpdate({
       ...inspection,
       checklist: updatedChecklist,
       status: 'completada',
       signature: {
         dataUrl,
-        supervisorName: 'Supervisor Attach',
-        rut: '15.489.321-K',
+        supervisorName: signerName,
         date: new Date().toLocaleString('es-CL', {
           year: 'numeric',
           month: '2-digit',
@@ -726,8 +729,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                     <span className="font-medium">Firmante:</span>{' '}
                     {inspection.signature.supervisorName
                       ? inspection.signature.supervisorName.replace(/iaptidud/gi, 'Attach')
-                      : 'Supervisor Attach'}{' '}
-                    (RUT: {inspection.signature.rut || '15.489.321-K'})
+                      : 'Supervisor Attach'}
                   </p>
                   <p>
                     <span className="font-medium">Fecha y hora de estampilla:</span> {inspection.signature.date}

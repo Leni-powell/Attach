@@ -10,8 +10,7 @@ export const DEFAULT_USER: UserSession = {
   email: '',
   name: 'Supervisor Attach',
   role: 'Supervisor Técnico Senior',
-  companyName: 'Attach • Reportabilidad Inteligente',
-  rut: '15.489.321-K'
+  companyName: 'Attach • Reportabilidad Inteligente'
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {

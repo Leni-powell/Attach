@@ -488,7 +488,6 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                     <span className="text-[11px] text-[#87778C] font-medium">Firma de Supervisión</span>
                   </div>
                   <p className="font-bold mt-1 text-[#38303B] dark:text-slate-200">Jefatura de Supervisión Attach</p>
-                  <p className="text-[10px]">RUT: 15.489.321-K</p>
                 </div>
               </div>
             </div>
@@ -621,7 +620,6 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                         ? currentIndividual.signature.supervisorName.replace(/iaptidud/gi, 'Attach')
                         : 'Supervisor Attach'}
                     </p>
-                    <p className="text-[10px] text-[#87778C]">RUT: {currentIndividual.signature?.rut || '15.489.321-K'}</p>
                   </div>
                 </div>
               </div>

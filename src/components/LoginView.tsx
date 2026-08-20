@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Lock, Mail, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Sparkles, AlertCircle, UserCheck, Shield, Users } from 'lucide-react';
 import { UserSession } from '../types';
 import { AttachLogo } from './AttachLogo';
+import { findUserByCredentials, APP_USERS } from '../data/users';
 
 interface LoginViewProps {
   onLoginSuccess: (user: UserSession) => void;
@@ -19,27 +20,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     setTimeout(() => {
-      // Required credentials check: admin@admin.cl / 1234
-      if (email.trim().toLowerCase() === 'admin@admin.cl' && password.trim() === '1234') {
-        const user: UserSession = {
-          isAuthenticated: true,
-          email: 'admin@admin.cl',
-          name: 'Supervisor Attach',
-          role: 'Supervisor Técnico Senior',
-          companyName: 'Attach • Reportabilidad Inteligente',
-          rut: '15.489.321-K'
-        };
-        onLoginSuccess(user);
+      const authenticatedUser = findUserByCredentials(email, password);
+      if (authenticatedUser) {
+        onLoginSuccess(authenticatedUser);
       } else {
-        setErrorMsg('Credenciales incorrectas. Verifique usuario o contraseña.');
+        setErrorMsg('Credenciales incorrectas. Verifique correo/usuario o contraseña.');
         setIsLoading(false);
       }
-    }, 400);
+    }, 350);
   };
 
-  const handleFillDemo = () => {
-    setEmail('admin@admin.cl');
-    setPassword('1234');
+  const handleSelectAccount = (accEmail: string, accPass: string) => {
+    setEmail(accEmail);
+    setPassword(accPass);
     setErrorMsg(null);
   };
 
@@ -69,20 +62,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-              Correo Electrónico
+              Usuario / Correo Electrónico
             </label>
             <div className="relative">
               <Mail className="w-5 h-5 absolute left-3.5 top-3.5 text-slate-400" />
               <input
                 id="login-email-input"
-                type="email"
+                type="text"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@admin.cl"
+                placeholder="leni@leni.cl / admin@admin / invitado@invitado"
                 className="w-full min-h-[52px] pl-11 pr-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
               />
             </div>
@@ -124,20 +120,92 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           </button>
         </form>
 
-        {/* Demo Shortcut Box */}
-        <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800 text-center">
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-            Credenciales de acceso para evaluación:
-          </p>
-          <button
-            id="login-autofill-btn"
-            type="button"
-            onClick={handleFillDemo}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-50 dark:bg-slate-800 hover:bg-purple-100 text-[#5E5365] dark:text-[#CC8B79] text-xs font-bold border border-purple-200 dark:border-slate-700 active:scale-95 transition-all cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#CC8B79]" />
-            <span>Autocompletar (admin@admin.cl / 1234)</span>
-          </button>
+        {/* Quick Access Accounts */}
+        <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5 text-[#CC8B79]" />
+              <span>Usuarios Habilitados</span>
+            </span>
+            <span className="text-[10px] text-slate-400">Clic para autocompletar</span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2">
+            {/* Super Usuario */}
+            <button
+              id="login-quick-super-btn"
+              type="button"
+              onClick={() => handleSelectAccount('leni@leni.cl', '1111')}
+              className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                email === 'leni@leni.cl'
+                  ? 'bg-purple-50 dark:bg-slate-800 border-[#CC8B79] text-[#5E5365] dark:text-[#CC8B79]'
+                  : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-purple-50/50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs">Super Usuario:</span>
+                  <span className="text-xs font-mono font-semibold">leni@leni.cl</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Clave: <code className="font-bold text-[#CC8B79]">1111</code> • Leni Powell
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#CC8B79] text-white shrink-0">
+                Super
+              </span>
+            </button>
+
+            {/* Subusuario Admin */}
+            <button
+              id="login-quick-admin-btn"
+              type="button"
+              onClick={() => handleSelectAccount('admin@admin', '4567')}
+              className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                email === 'admin@admin'
+                  ? 'bg-purple-50 dark:bg-slate-800 border-[#CC8B79] text-[#5E5365] dark:text-[#CC8B79]'
+                  : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-purple-50/50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs">Subusuario:</span>
+                  <span className="text-xs font-mono font-semibold">admin@admin</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Clave: <code className="font-bold text-[#CC8B79]">4567</code> • Admin Supervisor
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#5E5365] text-white shrink-0">
+                Admin
+              </span>
+            </button>
+
+            {/* Invitado */}
+            <button
+              id="login-quick-invitado-btn"
+              type="button"
+              onClick={() => handleSelectAccount('invitado@invitado', '4568')}
+              className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                email === 'invitado@invitado'
+                  ? 'bg-purple-50 dark:bg-slate-800 border-[#CC8B79] text-[#5E5365] dark:text-[#CC8B79]'
+                  : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-purple-50/50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs">Invitado:</span>
+                  <span className="text-xs font-mono font-semibold">invitado@invitado</span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Clave: <code className="font-bold text-[#CC8B79]">4568</code> • Usuario Invitado
+                </div>
+              </div>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-200 shrink-0">
+                Invitado
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -147,3 +215,4 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     </div>
   );
 };
+

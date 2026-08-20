@@ -55,7 +55,6 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
     signature: {
       dataUrl: SAMPLE_SIGNATURE_DATA_URL,
       supervisorName: 'Admin Attach',
-      rut: '15.489.321-K',
       date: '2026-08-18 16:45'
     },
     notes: 'Inspección de rutina completada. Se solicitó despeje inmediato de extintor.',
