@@ -146,13 +146,13 @@ export const Header: React.FC<HeaderProps> = ({
             id="header-darkmode-btn"
             onClick={onToggleDarkMode}
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center bg-white dark:bg-slate-800 shadow-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 active:scale-95 transition-all text-slate-600 dark:text-slate-300 cursor-pointer"
-            title={darkMode ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            title={darkMode ? 'Modo Oscuro (clic para cambiar a claro)' : 'Modo Claro (clic para cambiar a oscuro)'}
             aria-label="Alternar tema"
           >
             {darkMode ? (
-              <Sun className="w-4 h-4 text-amber-400" />
+              <Moon className="w-4 h-4 text-[#CC8B79] dark:text-[#CC8B79]" />
             ) : (
-              <Moon className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+              <Sun className="w-4 h-4 text-amber-500" />
             )}
           </button>
         </div>
