@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Inspection } from '../types';
 import { CompliancePieChart } from './CompliancePieChart';
+import { SeverityPieChart } from './SeverityPieChart';
 
 interface ReportsViewProps {
   inspections: Inspection[];
@@ -115,39 +116,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         </div>
       </div>
 
-      {/* Severity Matrix of Findings */}
-      <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[#E5DFDC] dark:border-slate-800 shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#38303B] dark:text-slate-300">
-            Matriz de Severidad de Hallazgos ({allFindings.length})
-          </h3>
-          <span className="text-xs text-[#965868] font-bold">
-            {criticalFindings + highFindings} prioridad alta
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <div className="p-3 rounded-xl bg-[#FAF2F4] dark:bg-[#2B1E23] border border-[#F1DDE1] dark:border-[#523842]">
-            <span className="text-[10px] font-bold uppercase text-[#965868] dark:text-[#D4A2B0] block">Crítica</span>
-            <span className="text-xl font-black text-[#965868] dark:text-[#D4A2B0]">{criticalFindings}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#FAF0EC] dark:bg-[#2C211E] border border-[#ECCFBE] dark:border-[#54433B]">
-            <span className="text-[10px] font-bold uppercase text-[#CC8B79] dark:text-[#E5BEA6] block">Alta</span>
-            <span className="text-xl font-black text-[#CC8B79] dark:text-[#E5BEA6]">{highFindings}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#FAF5F0] dark:bg-[#2B231F] border border-[#ECCFBE] dark:border-[#54433B]">
-            <span className="text-[10px] font-bold uppercase text-[#BD9F8D] dark:text-[#D9C4B8] block">Media</span>
-            <span className="text-xl font-black text-[#BD9F8D] dark:text-[#D9C4B8]">{mediumFindings}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-[#F0F4F8] dark:bg-[#1E262C] border border-[#BCD1DE] dark:border-[#3E4D59]">
-            <span className="text-[10px] font-bold uppercase text-[#5C788A] dark:text-[#9EB0BE] block">Baja</span>
-            <span className="text-xl font-black text-[#5C788A] dark:text-[#9EB0BE]">{lowFindings}</span>
-          </div>
-        </div>
-      </div>
+      {/* Severity Matrix of Findings in Pie Chart format with action protocols */}
+      <SeverityPieChart
+        critical={criticalFindings}
+        high={highFindings}
+        medium={mediumFindings}
+        low={lowFindings}
+        total={allFindings.length}
+      />
 
       {/* Export Action Card (min 56px touch height) */}
       <div className="p-5 sm:p-6 rounded-3xl bg-[#38303B] text-white shadow-xl space-y-4 border border-[#4E4352]">
