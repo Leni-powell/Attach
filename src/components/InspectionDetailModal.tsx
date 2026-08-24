@@ -238,27 +238,27 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
   const getSeverityBadge = (sev: string) => {
     switch (sev) {
       case 'Crítica':
-        return 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300';
+        return 'bg-[#FAF2F4] dark:bg-[#2B1E23] text-[#965868] dark:text-[#D4A2B0] border-[#F1DDE1] dark:border-[#523842]';
       case 'Alta':
-        return 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-300';
+        return 'bg-[#FAF0EC] dark:bg-[#2C211E] text-[#CC8B79] dark:text-[#E5BEA6] border-[#ECCFBE] dark:border-[#54433B]';
       case 'Media':
-        return 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300';
+        return 'bg-[#FAF5F0] dark:bg-[#2B231F] text-[#BD9F8D] dark:text-[#D9C4B8] border-[#ECCFBE] dark:border-[#54433B]';
       default:
-        return 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300';
+        return 'bg-[#F0F4F8] dark:bg-[#1E262C] text-[#5C788A] dark:text-[#9EB0BE] border-[#BCD1DE] dark:border-[#3E4D59]';
     }
   };
 
   const statusBadge = {
-    completada: 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300',
-    pendiente: 'bg-blue-100 dark:bg-blue-950/60 text-[#0057B8] dark:text-blue-300 border-blue-300',
-    vencida: 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300'
+    completada: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+    pendiente: 'bg-[#FAF0EC] dark:bg-[#2C211E] text-[#CC8B79] dark:text-[#E5BEA6] border-[#ECCFBE] dark:border-[#54433B]',
+    vencida: 'bg-rose-50 dark:bg-rose-950/60 text-[#965868] dark:text-[#D4A2B0] border-[#F1DDE1] dark:border-[#523842]'
   }[inspection.status];
 
   const typeIcon = {
-    Seguridad: <ShieldCheck className="w-4 h-4 text-blue-600" />,
-    Calidad: <HardHat className="w-4 h-4 text-amber-600" />,
-    'Medio Ambiente': <Leaf className="w-4 h-4 text-emerald-600" />,
-    Operacional: <Cog className="w-4 h-4 text-purple-600" />
+    Seguridad: <ShieldCheck className="w-4 h-4 text-[#5C788A]" />,
+    Calidad: <HardHat className="w-4 h-4 text-[#6F5F75]" />,
+    'Medio Ambiente': <Leaf className="w-4 h-4 text-[#946755]" />,
+    Operacional: <Cog className="w-4 h-4 text-[#965868]" />
   }[inspection.type];
 
   return (
@@ -313,7 +313,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={() => onExportReport(inspection)}
-              className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 text-[#0057B8] dark:text-blue-400 transition-colors"
+              className="p-2 rounded-xl bg-[#F0F4F8] dark:bg-[#1E262C] hover:bg-[#E2EAF0] text-[#5C788A] dark:text-[#9EB0BE] transition-colors"
               title="Generar Ficha / PDF"
             >
               <Printer className="w-5 h-5" />
@@ -332,12 +332,12 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
         <div className="py-2.5 shrink-0">
           <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
             <span>Progreso de Checklist</span>
-            <span className="text-[#0057B8] dark:text-blue-400 font-extrabold">{progressPercent}% ({completedItems}/{totalItems})</span>
+            <span className="text-[#5E5365] dark:text-[#CC8B79] font-extrabold">{progressPercent}% ({completedItems}/{totalItems})</span>
           </div>
           <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                progressPercent === 100 ? 'bg-emerald-500' : 'bg-[#0057B8]'
+                progressPercent === 100 ? 'bg-emerald-500' : 'bg-[#5E5365]'
               }`}
               style={{ width: `${progressPercent}%` }}
             />
@@ -350,7 +350,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
             onClick={() => setActiveTab('checklist')}
             className={`flex-1 min-h-[38px] py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'checklist'
-                ? 'bg-white dark:bg-slate-900 text-[#0057B8] dark:text-blue-400 shadow-xs'
+                ? 'bg-white dark:bg-slate-900 text-[#5E5365] dark:text-[#CC8B79] shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -365,14 +365,14 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
             onClick={() => setActiveTab('findings')}
             className={`flex-1 min-h-[38px] py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'findings'
-                ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs'
+                ? 'bg-white dark:bg-slate-900 text-[#965868] dark:text-[#D4A2B0] shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>Hallazgos</span>
             {inspection.findings.length > 0 && (
-              <span className="text-[10px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold">
+              <span className="text-[10px] bg-[#965868] text-white px-1.5 py-0.2 rounded-full font-bold">
                 {inspection.findings.length}
               </span>
             )}
@@ -382,7 +382,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
             onClick={() => setActiveTab('evidences')}
             className={`flex-1 min-h-[38px] py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'evidences'
-                ? 'bg-white dark:bg-slate-900 text-[#0057B8] dark:text-blue-400 shadow-xs'
+                ? 'bg-white dark:bg-slate-900 text-[#5E5365] dark:text-[#CC8B79] shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -399,7 +399,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
             onClick={() => setActiveTab('signature')}
             className={`flex-1 min-h-[38px] py-1.5 px-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === 'signature'
-                ? 'bg-white dark:bg-slate-900 text-[#0057B8] dark:text-blue-400 shadow-xs'
+                ? 'bg-white dark:bg-slate-900 text-[#5E5365] dark:text-[#CC8B79] shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
@@ -461,13 +461,13 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveEditItem();
                             }}
-                            className="flex-1 min-h-[44px] px-3 py-2 rounded-lg border border-blue-400 bg-white dark:bg-slate-900 text-xs sm:text-sm"
+                            className="flex-1 min-h-[44px] px-3 py-2 rounded-lg border border-[#5E5365] bg-white dark:bg-slate-900 text-xs sm:text-sm"
                             autoFocus
                           />
                           <button
                             type="button"
                             onClick={handleSaveEditItem}
-                            className="min-h-[44px] px-3 bg-[#0057B8] text-white rounded-lg text-xs font-bold"
+                            className="min-h-[44px] px-3 bg-[#5E5365] hover:bg-[#4E4454] text-white rounded-lg text-xs font-bold"
                           >
                             Guardar
                           </button>
@@ -546,12 +546,12 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                     }
                   }}
                   placeholder="Agregar nuevo punto de inspección..."
-                  className="flex-1 min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+                  className="flex-1 min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
                 />
                 <button
                   type="button"
                   onClick={handleAddChecklistItem}
-                  className="min-h-[48px] px-4 bg-[#0057B8] hover:bg-[#004799] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
+                  className="min-h-[48px] px-4 bg-[#5E5365] hover:bg-[#4E4454] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-sm cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Añadir</span>
@@ -570,7 +570,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsFindingModalOpen(true)}
-                  className="min-h-[42px] px-3.5 py-2 bg-[#FF6B00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                  className="min-h-[42px] px-3.5 py-2 bg-[#CC8B79] hover:bg-[#B87A69] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Nuevo Hallazgo</span>
@@ -655,7 +655,7 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsEvidenceModalOpen(true)}
-                  className="min-h-[42px] px-3.5 py-2 bg-[#0057B8] hover:bg-[#004799] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs"
+                  className="min-h-[42px] px-3.5 py-2 bg-[#5E5365] hover:bg-[#4E4454] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Añadir Foto</span>
@@ -787,16 +787,16 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
             <button
               type="button"
               onClick={() => onExportReport(inspection)}
-              className="min-h-[52px] px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-slate-50 transition-all shadow-xs"
+              className="min-h-[52px] px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-bold flex items-center gap-1.5 hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
             >
-              <Printer className="w-4 h-4 text-[#0057B8]" />
+              <Printer className="w-4 h-4 text-[#5E5365] dark:text-[#CC8B79]" />
               <span className="hidden sm:inline">Ver Informe</span>
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[52px] px-5 sm:px-6 py-2.5 bg-[#0057B8] hover:bg-[#004799] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md active:scale-95 transition-all"
+              className="min-h-[52px] px-5 sm:px-6 py-2.5 bg-[#5E5365] hover:bg-[#4E4454] text-white rounded-xl text-xs sm:text-sm font-bold shadow-md active:scale-95 transition-all cursor-pointer"
             >
               Listo
             </button>

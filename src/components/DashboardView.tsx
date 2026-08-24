@@ -45,23 +45,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       case 'Seguridad':
         return {
           code: 'SEG',
-          className: 'bg-blue-100 dark:bg-blue-950/70 text-[#0057B8] dark:text-blue-400'
+          className: 'bg-[#F0F4F8] dark:bg-[#1E262C] text-[#5C788A] dark:text-[#9EB0BE] border border-[#BCD1DE] dark:border-[#3E4D59]'
         };
       case 'Calidad':
         return {
           code: 'CAL',
-          className: 'bg-orange-100 dark:bg-orange-950/70 text-[#FF6B00]'
+          className: 'bg-[#FAF8F9] dark:bg-[#251E28] text-[#6F5F75] dark:text-[#B2A2B7] border border-[#C2B3C7] dark:border-[#4B3E52]'
         };
       case 'Medio Ambiente':
         return {
           code: 'AMB',
-          className: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300'
+          className: 'bg-[#FAF5F0] dark:bg-[#2B231F] text-[#946755] dark:text-[#E5BEA6] border border-[#ECCFBE] dark:border-[#54433B]'
         };
       case 'Operacional':
       default:
         return {
           code: 'OPE',
-          className: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300'
+          className: 'bg-[#FAF2F4] dark:bg-[#2B1E23] text-[#965868] dark:text-[#D4A2B0] border border-[#F1DDE1] dark:border-[#523842]'
         };
     }
   };
@@ -71,21 +71,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       case 'completada':
         return {
           label: 'Completada',
-          pillClass: 'bg-green-100 dark:bg-green-950/60 text-green-700 dark:text-green-300',
-          barClass: 'bg-green-500'
+          pillClass: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
+          barClass: 'bg-[#5E5365]'
         };
       case 'vencida':
         return {
           label: 'Vencida',
-          pillClass: 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300',
-          barClass: 'bg-red-500'
+          pillClass: 'bg-rose-50 dark:bg-rose-950/60 text-[#965868] dark:text-[#D4A2B0] border border-[#F1DDE1] dark:border-[#523842]',
+          barClass: 'bg-[#965868]'
         };
       case 'pendiente':
       default:
         return {
           label: 'En Proceso',
-          pillClass: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300',
-          barClass: 'bg-[#0057B8]'
+          pillClass: 'bg-[#FAF0EC] dark:bg-[#2C211E] text-[#CC8B79] dark:text-[#E5BEA6] border border-[#ECCFBE] dark:border-[#54433B]',
+          barClass: 'bg-[#CC8B79]'
         };
     }
   };
@@ -182,7 +182,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </h3>
         <button
           onClick={onNavigateToInspections}
-          className="text-[#0057B8] dark:text-blue-400 font-bold text-sm cursor-pointer hover:underline flex items-center gap-1"
+          className="text-[#5E5365] dark:text-[#CC8B79] font-bold text-sm cursor-pointer hover:underline flex items-center gap-1"
         >
           <span>Ver todas →</span>
         </button>
@@ -202,7 +202,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               key={insp.id}
               id={`inspection-card-${insp.id}`}
               onClick={() => onSelectInspection(insp)}
-              className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#0057B8] dark:hover:border-blue-500 transition-colors cursor-pointer active:scale-99"
+              className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#5E5365] dark:hover:border-[#CC8B79] transition-colors cursor-pointer active:scale-99"
             >
               {/* Left side: Specialty badge + Info */}
               <div className="flex items-center gap-3 sm:gap-4 min-w-0 pr-2">

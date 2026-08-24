@@ -98,15 +98,15 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="min-h-[70px] flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-[#0057B8]/40 dark:border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50 text-[#0057B8] dark:text-blue-400 font-bold active:scale-95 transition-all text-xs sm:text-sm"
+                className="min-h-[70px] flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-[#CC8B79]/40 dark:border-[#CC8B79]/40 bg-[#FAF0EC]/60 dark:bg-[#2C211E]/40 hover:bg-[#FAF0EC] text-[#CC8B79] dark:text-[#E5BEA6] font-bold active:scale-95 transition-all text-xs sm:text-sm cursor-pointer"
               >
-                <Camera className="w-6 h-6 text-[#FF6B00]" />
+                <Camera className="w-6 h-6 text-[#CC8B79]" />
                 <span>Cámara en terreno</span>
               </button>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="min-h-[70px] flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold active:scale-95 transition-all text-xs sm:text-sm"
+                className="min-h-[70px] flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 text-slate-700 dark:text-slate-300 font-semibold active:scale-95 transition-all text-xs sm:text-sm cursor-pointer"
               >
                 <Upload className="w-6 h-6 text-slate-500" />
                 <span>Subir de Galería</span>
@@ -123,7 +123,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Ej: Vista general sector acopio, tablero eléctrico #4..."
-              className="w-full min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+              className="w-full min-h-[48px] px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
             />
           </div>
 
@@ -131,16 +131,16 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[50px] px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="min-h-[50px] px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={!photoUrl}
-              className={`flex-1 min-h-[50px] px-4 py-2.5 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 min-h-[50px] px-4 py-2.5 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 photoUrl
-                  ? 'bg-[#0057B8] hover:bg-[#004799] text-white'
+                  ? 'bg-[#5E5365] hover:bg-[#4E4454] text-white'
                   : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
               }`}
             >

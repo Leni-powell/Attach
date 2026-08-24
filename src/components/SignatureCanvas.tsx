@@ -43,7 +43,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     ctx.scale(dpr, dpr);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#0057B8';
+    ctx.strokeStyle = '#5E5365';
     ctx.lineWidth = 2.5;
 
     // If an initial signature exists, draw it back onto canvas
@@ -141,7 +141,7 @@ export const SignatureCanvas: React.FC<SignatureCanvasProps> = ({
     <div className="w-full bg-slate-50 dark:bg-slate-900/90 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <PenTool className="w-4 h-4 text-[#0057B8] dark:text-blue-400" />
+          <PenTool className="w-4 h-4 text-[#5E5365] dark:text-[#CC8B79]" />
           <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
             Firma Digital del Supervisor
           </span>

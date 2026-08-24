@@ -32,14 +32,14 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: () => void }> = ({ t
     success: <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />,
     error: <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />,
     warning: <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />,
-    info: <Info className="w-5 h-5 text-[#0057B8] shrink-0" />
+    info: <Info className="w-5 h-5 text-[#5E5365] dark:text-[#CC8B79] shrink-0" />
   };
 
   const bgStyles = {
     success: 'border-emerald-200 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200',
     error: 'border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/80 text-rose-900 dark:text-rose-200',
     warning: 'border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200',
-    info: 'border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/80 text-blue-900 dark:text-blue-200'
+    info: 'border-purple-200 dark:border-purple-900/60 bg-purple-50 dark:bg-slate-900 text-[#5E5365] dark:text-[#CC8B79]'
   };
 
   return (

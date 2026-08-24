@@ -23,10 +23,10 @@ export const FindingModal: React.FC<FindingModalProps> = ({
   if (!isOpen) return null;
 
   const severities: { value: Severity; label: string; color: string; bg: string }[] = [
-    { value: 'Baja', label: 'Baja', color: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-100 dark:bg-emerald-950/60 border-emerald-300' },
-    { value: 'Media', label: 'Media', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-100 dark:bg-amber-950/60 border-amber-300' },
-    { value: 'Alta', label: 'Alta', color: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-950/60 border-orange-300' },
-    { value: 'Crítica', label: 'Crítica', color: 'text-rose-700 dark:text-rose-300', bg: 'bg-rose-100 dark:bg-rose-950/60 border-rose-300' }
+    { value: 'Baja', label: 'Baja', color: 'text-[#5C788A] dark:text-[#9EB0BE]', bg: 'bg-[#F0F4F8] dark:bg-[#1E262C] border-[#BCD1DE] dark:border-[#3E4D59]' },
+    { value: 'Media', label: 'Media', color: 'text-[#BD9F8D] dark:text-[#D9C4B8]', bg: 'bg-[#FAF5F0] dark:bg-[#2B231F] border-[#ECCFBE] dark:border-[#54433B]' },
+    { value: 'Alta', label: 'Alta', color: 'text-[#CC8B79] dark:text-[#E5BEA6]', bg: 'bg-[#FAF0EC] dark:bg-[#2C211E] border-[#ECCFBE] dark:border-[#54433B]' },
+    { value: 'Crítica', label: 'Crítica', color: 'text-[#965868] dark:text-[#D4A2B0]', bg: 'bg-[#FAF2F4] dark:bg-[#2B1E23] border-[#F1DDE1] dark:border-[#523842]' }
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +105,7 @@ export const FindingModal: React.FC<FindingModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ej: Falla en cuerda de vida o bloqueo deficiente"
-              className="w-full min-h-[50px] px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+              className="w-full min-h-[50px] px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
             />
           </div>
 
@@ -120,7 +120,7 @@ export const FindingModal: React.FC<FindingModalProps> = ({
                   type="button"
                   key={item.value}
                   onClick={() => setSeverity(item.value)}
-                  className={`min-h-[44px] py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center ${
+                  className={`min-h-[44px] py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center justify-center cursor-pointer ${
                     severity === item.value
                       ? `${item.bg} ${item.color} ring-2 ring-offset-1 ring-current font-black`
                       : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 opacity-70 hover:opacity-100'
@@ -142,7 +142,7 @@ export const FindingModal: React.FC<FindingModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Detalle la condición subestándar observada, personas involucradas y acción recomendada..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
             />
           </div>
 
@@ -171,7 +171,7 @@ export const FindingModal: React.FC<FindingModalProps> = ({
                 <button
                   type="button"
                   onClick={handleRemovePhoto}
-                  className="absolute top-2 right-2 p-2 bg-rose-600/90 text-white rounded-lg hover:bg-rose-700 shadow-md backdrop-blur-xs flex items-center gap-1 text-xs font-bold"
+                  className="absolute top-2 right-2 p-2 bg-rose-600/90 text-white rounded-lg hover:bg-rose-700 shadow-md backdrop-blur-xs flex items-center gap-1 text-xs font-bold cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span>Eliminar foto</span>
@@ -182,15 +182,15 @@ export const FindingModal: React.FC<FindingModalProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="min-h-[52px] flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-[#0057B8]/40 dark:border-blue-500/40 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50 text-[#0057B8] dark:text-blue-400 text-xs sm:text-sm font-bold active:scale-95 transition-all"
+                  className="min-h-[52px] flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-[#CC8B79]/40 bg-[#FAF0EC]/60 dark:bg-[#2C211E]/40 hover:bg-[#FAF0EC] text-[#CC8B79] dark:text-[#E5BEA6] text-xs sm:text-sm font-bold active:scale-95 transition-all cursor-pointer"
                 >
-                  <Camera className="w-5 h-5 text-[#FF6B00]" />
+                  <Camera className="w-5 h-5 text-[#CC8B79]" />
                   <span>Tomar Foto</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="min-h-[52px] flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-semibold active:scale-95 transition-all"
+                  className="min-h-[52px] flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-semibold active:scale-95 transition-all cursor-pointer"
                 >
                   <Upload className="w-5 h-5 text-slate-500" />
                   <span>Galería</span>
@@ -204,13 +204,13 @@ export const FindingModal: React.FC<FindingModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[52px] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="min-h-[52px] px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 min-h-[52px] px-4 py-3 rounded-xl bg-[#FF6B00] hover:bg-[#e05e00] text-white text-sm font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="flex-1 min-h-[52px] px-4 py-3 rounded-xl bg-[#CC8B79] hover:bg-[#B87A69] text-white text-sm font-bold shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Check className="w-5 h-5" />
               <span>Guardar Hallazgo</span>

@@ -38,10 +38,10 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
   if (!isOpen) return null;
 
   const typeOptions: { type: InspectionType; icon: React.ReactNode; color: string }[] = [
-    { type: 'Seguridad', icon: <ShieldCheck className="w-4 h-4" />, color: 'bg-blue-600' },
-    { type: 'Calidad', icon: <HardHat className="w-4 h-4" />, color: 'bg-amber-600' },
-    { type: 'Medio Ambiente', icon: <Leaf className="w-4 h-4" />, color: 'bg-emerald-600' },
-    { type: 'Operacional', icon: <Cog className="w-4 h-4" />, color: 'bg-purple-600' }
+    { type: 'Seguridad', icon: <ShieldCheck className="w-4 h-4" />, color: 'bg-[#5C788A]' },
+    { type: 'Calidad', icon: <HardHat className="w-4 h-4" />, color: 'bg-[#6F5F75]' },
+    { type: 'Medio Ambiente', icon: <Leaf className="w-4 h-4" />, color: 'bg-[#946755]' },
+    { type: 'Operacional', icon: <Cog className="w-4 h-4" />, color: 'bg-[#965868]' }
   ];
 
   const handleToggleItem = (id: string) => {
@@ -128,9 +128,9 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
                   type="button"
                   key={opt.type}
                   onClick={() => setType(opt.type)}
-                  className={`min-h-[52px] p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all ${
+                  className={`min-h-[52px] p-2.5 rounded-xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
                     type === opt.type
-                      ? 'border-[#0057B8] bg-blue-50 dark:bg-blue-950/60 text-[#0057B8] dark:text-blue-300 ring-2 ring-[#0057B8]/30 shadow-xs'
+                      ? 'border-[#5E5365] bg-[#FAF8F9] dark:bg-[#251E28] text-[#5E5365] dark:text-[#CC8B79] ring-2 ring-[#5E5365]/30 shadow-xs'
                       : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
                   }`}
                 >
@@ -160,7 +160,7 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="Nombre de la empresa"
-                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
                 />
                 <datalist id="companies-list">
                   {SAMPLE_COMPANIES.map((c) => (
@@ -183,7 +183,7 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
                   value={faena}
                   onChange={(e) => setFaena(e.target.value)}
                   placeholder="Ej: Faena Norte, Edificio B..."
-                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
                 />
                 <datalist id="faenas-list">
                   {SAMPLE_FAENAS.map((f) => (
@@ -208,7 +208,7 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Ej: Piso 3, Sector A, Galpón 4..."
-                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
                 />
               </div>
             </div>
@@ -224,7 +224,7 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
                 />
               </div>
             </div>
@@ -300,12 +300,12 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
                   }
                 }}
                 placeholder="Añadir ítem personalizado al checklist..."
-                className="flex-1 min-h-[48px] px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+                className="flex-1 min-h-[48px] px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs sm:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
               />
               <button
                 type="button"
                 onClick={handleAddCustomItem}
-                className="min-h-[48px] px-4 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all"
+                className="min-h-[48px] px-4 bg-[#5E5365] hover:bg-[#4E4454] text-white rounded-xl text-xs font-bold flex items-center gap-1 shrink-0 active:scale-95 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Agregar</span>
@@ -323,7 +323,7 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Instrucciones o requerimientos especiales para la cuadrilla..."
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8]"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
             />
           </div>
 
@@ -332,15 +332,15 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[56px] px-5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="min-h-[56px] px-5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 min-h-[56px] px-5 py-3 rounded-xl bg-[#0057B8] hover:bg-[#004799] text-white text-sm font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+              className="flex-1 min-h-[56px] px-5 py-3 rounded-xl bg-[#5E5365] hover:bg-[#4E4454] text-white text-sm font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <CheckCircle2 className="w-5 h-5 text-[#FF6B00]" />
+              <CheckCircle2 className="w-5 h-5 text-[#CC8B79]" />
               <span>Crear Inspección</span>
             </button>
           </div>

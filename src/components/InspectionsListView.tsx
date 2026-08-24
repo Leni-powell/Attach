@@ -69,23 +69,23 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
       case 'Seguridad':
         return {
           code: 'SEG',
-          className: 'bg-blue-100 dark:bg-blue-950/70 text-[#0057B8] dark:text-blue-400'
+          className: 'bg-[#F0F4F8] dark:bg-[#1E262C] text-[#5C788A] dark:text-[#9EB0BE] border border-[#BCD1DE] dark:border-[#3E4D59]'
         };
       case 'Calidad':
         return {
           code: 'CAL',
-          className: 'bg-orange-100 dark:bg-orange-950/70 text-[#FF6B00]'
+          className: 'bg-[#FAF8F9] dark:bg-[#251E28] text-[#6F5F75] dark:text-[#B2A2B7] border border-[#C2B3C7] dark:border-[#4B3E52]'
         };
       case 'Medio Ambiente':
         return {
           code: 'AMB',
-          className: 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300'
+          className: 'bg-[#FAF5F0] dark:bg-[#2B231F] text-[#946755] dark:text-[#E5BEA6] border border-[#ECCFBE] dark:border-[#54433B]'
         };
       case 'Operacional':
       default:
         return {
           code: 'OPE',
-          className: 'bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300'
+          className: 'bg-[#FAF2F4] dark:bg-[#2B1E23] text-[#965868] dark:text-[#D4A2B0] border border-[#F1DDE1] dark:border-[#523842]'
         };
     }
   };
@@ -95,21 +95,21 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
       case 'completada':
         return {
           label: 'Completada',
-          pillClass: 'bg-green-100 dark:bg-green-950/60 text-green-700 dark:text-green-300',
-          barClass: 'bg-green-500'
+          pillClass: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
+          barClass: 'bg-[#5E5365]'
         };
       case 'vencida':
         return {
           label: 'Vencida',
-          pillClass: 'bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300',
-          barClass: 'bg-red-500'
+          pillClass: 'bg-rose-50 dark:bg-rose-950/60 text-[#965868] dark:text-[#D4A2B0] border border-[#F1DDE1] dark:border-[#523842]',
+          barClass: 'bg-[#965868]'
         };
       case 'pendiente':
       default:
         return {
           label: 'En Proceso',
-          pillClass: 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300',
-          barClass: 'bg-[#0057B8]'
+          pillClass: 'bg-[#FAF0EC] dark:bg-[#2C211E] text-[#CC8B79] dark:text-[#E5BEA6] border border-[#ECCFBE] dark:border-[#54433B]',
+          barClass: 'bg-[#CC8B79]'
         };
     }
   };
@@ -126,7 +126,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por empresa, faena, sector o tipo..."
-            className="w-full min-h-[48px] pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#0057B8] shadow-xs"
+            className="w-full min-h-[48px] pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365] shadow-xs"
           />
           {searchTerm && (
             <button
@@ -153,7 +153,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
               onClick={() => setStatusFilter(tab.id)}
               className={`min-h-[38px] py-1.5 rounded-lg transition-all text-center truncate cursor-pointer ${
                 statusFilter === tab.id
-                  ? 'bg-white dark:bg-slate-900 text-[#0057B8] dark:text-blue-400 shadow-xs font-extrabold'
+                  ? 'bg-white dark:bg-slate-900 text-[#5E5365] dark:text-[#CC8B79] shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
@@ -168,7 +168,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
             onClick={() => setTypeFilter('todos')}
             className={`min-h-[34px] px-3 py-1 rounded-full whitespace-nowrap font-bold transition-all cursor-pointer ${
               typeFilter === 'todos'
-                ? 'bg-[#0057B8] text-white shadow-xs'
+                ? 'bg-[#5E5365] text-white shadow-xs'
                 : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
             }`}
           >
@@ -180,7 +180,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
               onClick={() => setTypeFilter(t)}
               className={`min-h-[34px] px-3 py-1 rounded-full whitespace-nowrap font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 typeFilter === t
-                  ? 'bg-[#0057B8] text-white shadow-xs'
+                  ? 'bg-[#5E5365] text-white shadow-xs'
                   : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
               }`}
             >
@@ -200,7 +200,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
               setTypeFilter('todos');
               setSearchTerm('');
             }}
-            className="text-[#0057B8] dark:text-blue-400 font-bold hover:underline cursor-pointer"
+            className="text-[#5E5365] dark:text-[#CC8B79] font-bold hover:underline cursor-pointer"
           >
             Restablecer filtros
           </button>
@@ -223,7 +223,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
           </div>
           <button
             onClick={onNewInspection}
-            className="min-h-[48px] px-4 py-2 bg-[#FF6B00] hover:bg-[#e05e00] text-white rounded-xl text-xs font-bold shadow-md inline-flex items-center gap-1.5 cursor-pointer"
+            className="min-h-[48px] px-4 py-2 bg-[#CC8B79] hover:bg-[#B87A69] text-white rounded-xl text-xs font-bold shadow-md inline-flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Crear Inspección</span>
@@ -243,7 +243,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
                 key={insp.id}
                 id={`inspection-item-${insp.id}`}
                 onClick={() => onSelectInspection(insp)}
-                className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-[#0057B8] dark:hover:border-blue-500 shadow-sm transition-all cursor-pointer active:scale-99"
+                className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-[#5E5365] dark:hover:border-[#CC8B79] shadow-sm transition-all cursor-pointer active:scale-99"
               >
                 {/* Header info matching the Professional Polish item style */}
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -325,7 +325,7 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-[#0057B8] dark:text-blue-400 text-xs font-bold">
+                  <div className="flex items-center gap-1 text-[#5E5365] dark:text-[#CC8B79] text-xs font-bold">
                     <span>Ver detalle</span>
                     <ChevronRight className="w-4 h-4" />
                   </div>

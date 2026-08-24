@@ -122,7 +122,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           {/* Push Notifications Permission */}
           <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center gap-3 min-w-0 pr-2">
-              <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950 text-[#FF6B00] flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-[#FAF0EC] dark:bg-[#2C211E] text-[#CC8B79] dark:text-[#E5BEA6] flex items-center justify-center shrink-0">
                 <BellRing className="w-5 h-5" />
               </div>
               <div className="min-w-0">
@@ -140,10 +140,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <button
               id="profile-toggle-notifications"
               onClick={handleRequestNotificationPermission}
-              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 ${
+              className={`min-h-[40px] px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95 cursor-pointer ${
                 notificationPermission === 'granted'
                   ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                  : 'bg-[#FF6B00] text-white hover:bg-[#e05e00] shadow-xs'
+                  : 'bg-[#CC8B79] text-white hover:bg-[#B87A69] shadow-xs'
               }`}
             >
               {notificationPermission === 'granted' ? 'Habilitadas' : 'Activar'}
