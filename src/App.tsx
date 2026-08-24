@@ -19,7 +19,6 @@ import {
   DEFAULT_USER
 } from './utils/storage';
 import { AppSettings, Inspection, TabType, ToastMessage, UserSession } from './types';
-import { exportInspectionsToCsv } from './utils/exportCsv';
 
 // Component imports
 import { Header } from './components/Header';
@@ -221,11 +220,6 @@ export default function App() {
     setIsReportModalOpen(true);
   };
 
-  const handleDownloadCsv = () => {
-    exportInspectionsToCsv(inspections);
-    showToast('success', 'Archivo CSV descargado correctamente.', 'Exportación Completa');
-  };
-
   const handleResetAllData = () => {
     const resetList = resetAllStorageData();
     setInspections(resetList);
@@ -338,7 +332,6 @@ export default function App() {
               <ReportsView
                 inspections={inspections}
                 onOpenReportModal={() => handleOpenReport()}
-                onDownloadCsv={handleDownloadCsv}
               />
             )}
 
@@ -420,7 +413,6 @@ export default function App() {
           setIsReportModalOpen(false);
           setReportModalInspection(null);
         }}
-        onDownloadCsv={handleDownloadCsv}
       />
     </div>
   );

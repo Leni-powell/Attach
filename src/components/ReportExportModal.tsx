@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Printer,
-  FileSpreadsheet,
   CheckCircle2,
   AlertTriangle,
   Loader2,
@@ -29,15 +28,13 @@ interface ReportExportModalProps {
   inspectionsList?: Inspection[];
   isOpen: boolean;
   onClose: () => void;
-  onDownloadCsv: (inspections: Inspection[]) => void;
 }
 
 export const ReportExportModal: React.FC<ReportExportModalProps> = ({
   inspection,
   inspectionsList = [],
   isOpen,
-  onClose,
-  onDownloadCsv
+  onClose
 }) => {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [downloadInfo, setDownloadInfo] = useState<{
@@ -630,15 +627,6 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
         {/* Action Buttons */}
         <div className="pt-3 border-t border-[#E5DFDC] dark:border-slate-800 print:hidden flex flex-wrap items-center justify-between gap-2.5 shrink-0">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onDownloadCsv(inspectionsList.length ? inspectionsList : currentIndividual ? [currentIndividual] : [])}
-              className="min-h-[48px] px-3.5 sm:px-4 py-2.5 rounded-xl border border-[#E5DFDC] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-[#FAF8F7] dark:hover:bg-slate-700 text-[#5E5365] dark:text-slate-200 text-xs sm:text-sm font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-[#5C788A]" />
-              <span>Exportar CSV (Excel)</span>
-            </button>
-
             <button
               type="button"
               onClick={handleOpenInNewTab}

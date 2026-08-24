@@ -3,7 +3,6 @@ import {
   BarChart3,
   CheckCircle2,
   AlertTriangle,
-  FileSpreadsheet,
   Printer,
   TrendingUp,
   ShieldCheck,
@@ -19,13 +18,11 @@ import { SeverityPieChart } from './SeverityPieChart';
 interface ReportsViewProps {
   inspections: Inspection[];
   onOpenReportModal: () => void;
-  onDownloadCsv: () => void;
 }
 
 export const ReportsView: React.FC<ReportsViewProps> = ({
   inspections,
-  onOpenReportModal,
-  onDownloadCsv
+  onOpenReportModal
 }) => {
   const total = inspections.length;
   const completed = inspections.filter((i) => i.status === 'completada').length;
@@ -140,19 +137,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            onClick={onDownloadCsv}
-            className="min-h-[56px] px-4 py-3 bg-[#5C788A] hover:bg-[#4D6778] text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md cursor-pointer"
-          >
-            <FileSpreadsheet className="w-5 h-5" />
-            <span>Descargar CSV (Excel)</span>
-          </button>
-
+        <div>
           <button
             id="btn-generate-consolidated-pdf"
             onClick={onOpenReportModal}
-            className="min-h-[56px] px-4 py-3 bg-[#CC8B79] hover:bg-[#B87A69] text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md cursor-pointer"
+            className="w-full min-h-[56px] px-4 py-3 bg-[#CC8B79] hover:bg-[#B87A69] text-white rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md cursor-pointer"
           >
             <Printer className="w-5 h-5" />
             <span>Generar Informe Consolidado PDF</span>
