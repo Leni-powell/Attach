@@ -16,24 +16,31 @@ import {
   WifiOff,
   Wifi
 } from 'lucide-react';
-import { AppSettings, UserSession } from '../types';
+import { AppSettings, Inspection, UserSession } from '../types';
+import { SupabaseSyncCard } from './SupabaseSyncCard';
 
 interface ProfileViewProps {
   user: UserSession;
   settings: AppSettings;
+  inspections: Inspection[];
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
   onResetAllData: () => void;
   onLogout: () => void;
   onTriggerNotificationTest: () => void;
+  onInspectionsSynced: (newInspections: Inspection[]) => void;
+  onShowToast: (type: 'success' | 'error' | 'info' | 'warning', message: string, title?: string) => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   user,
   settings,
+  inspections,
   onUpdateSettings,
   onResetAllData,
   onLogout,
-  onTriggerNotificationTest
+  onTriggerNotificationTest,
+  onInspectionsSynced,
+  onShowToast
 }) => {
   const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<string>(
@@ -178,6 +185,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Supabase Cloud Connection & Sync Card */}
+      <SupabaseSyncCard
+        inspections={inspections}
+        onInspectionsSynced={onInspectionsSynced}
+        onShowToast={onShowToast}
+      />
 
       {/* Danger Zone: Reset Data & Logout */}
       <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">

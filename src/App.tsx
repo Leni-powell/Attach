@@ -19,6 +19,12 @@ import {
   DEFAULT_USER
 } from './utils/storage';
 import { AppSettings, Inspection, TabType, ToastMessage, UserSession } from './types';
+import {
+  getSupabaseConfig,
+  fetchInspectionsFromSupabase,
+  saveInspectionToSupabase,
+  deleteInspectionFromSupabase
+} from './lib/supabase';
 
 // Component imports
 import { Header } from './components/Header';
@@ -147,6 +153,21 @@ export default function App() {
     saveStoredInspections(newInspections);
   };
 
+  // Initial Supabase auto-pull on launch if configured
+  useEffect(() => {
+    const config = getSupabaseConfig();
+    if (config.isConfigured) {
+      fetchInspectionsFromSupabase().then((res) => {
+        if (res.data && res.data.length > 0) {
+          setInspections(res.data);
+          saveStoredInspections(res.data);
+        }
+      }).catch((err) => {
+        console.warn('Silent Supabase initial fetch failed, using local storage:', err);
+      });
+    }
+  }, []);
+
   // User authentication
   const handleLoginSuccess = (authenticatedUser: UserSession) => {
     setUser(authenticatedUser);
@@ -181,12 +202,15 @@ export default function App() {
     }
   };
 
-  // Inspection Actions
+  // Inspection Actions with async Supabase cloud persistence
   const handleCreateInspection = (newInsp: Inspection) => {
     const updated = [newInsp, ...inspections];
     handleSaveInspections(updated);
     showToast('success', `Inspección para ${newInsp.company} creada exitosamente.`, 'Inspección Creada');
     triggerNotification('Nueva Inspección', `Se registró pauta para ${newInsp.company} (${newInsp.type}).`);
+
+    // Asynchronous background cloud save
+    saveInspectionToSupabase(newInsp).catch((err) => console.warn('Supabase async save:', err));
   };
 
   const handleUpdateInspection = (updatedInsp: Inspection) => {
@@ -198,8 +222,11 @@ export default function App() {
       showToast('success', '¡Inspección completada al 100%!', 'Auditoría Finalizada');
       triggerNotification('Inspección Completada', `${updatedInsp.company} fue completada y validada.`);
     } else {
-      showToast('info', 'Cambios guardados en memoria local.');
+      showToast('info', 'Cambios guardados correctamente.');
     }
+
+    // Asynchronous background cloud save
+    saveInspectionToSupabase(updatedInsp).catch((err) => console.warn('Supabase async update:', err));
   };
 
   const handleDeleteInspection = (id: string) => {
@@ -208,6 +235,9 @@ export default function App() {
     setSelectedInspection(null);
     setIsDetailModalOpen(false);
     showToast('info', 'Inspección eliminada correctamente.');
+
+    // Asynchronous background cloud delete
+    deleteInspectionFromSupabase(id).catch((err) => console.warn('Supabase async delete:', err));
   };
 
   const handleOpenDetail = (inspection: Inspection) => {
@@ -339,12 +369,19 @@ export default function App() {
               <ProfileView
                 user={user}
                 settings={settings}
+                inspections={inspections}
                 onUpdateSettings={(newVals) => setSettings((prev) => ({ ...prev, ...newVals }))}
                 onResetAllData={handleResetAllData}
                 onLogout={handleLogout}
                 onTriggerNotificationTest={() => {
                   showToast('success', 'Prueba de notificación emitida.', 'Notificación');
                   triggerNotification('Attach Alerta', 'Reportabilidad inteligente: Prueba de notificación push.');
+                }}
+                onInspectionsSynced={(syncedList) => {
+                  handleSaveInspections(syncedList);
+                }}
+                onShowToast={(type, message, title) => {
+                  showToast(type, message, title);
                 }}
               />
             )}
