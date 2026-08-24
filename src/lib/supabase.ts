@@ -5,6 +5,48 @@ import { Inspection, UserSession } from '../types';
 const STORAGE_SUPABASE_URL_KEY = 'attach_supabase_url_config';
 const STORAGE_SUPABASE_KEY_KEY = 'attach_supabase_key_config';
 
+/**
+ * Robustly sanitizes and normalizes Supabase Project URLs.
+ * Handles trailing slashes, /rest/v1 paths, and dashboard URLs.
+ */
+export function sanitizeSupabaseUrl(rawUrl: string): string {
+  let url = (rawUrl || '').trim();
+  // Strip enclosing quotes
+  url = url.replace(/^['"]+|['"]+$/g, '');
+
+  if (!url) return '';
+
+  // If user pasted dashboard link: https://supabase.com/dashboard/project/<ref-id>/...
+  const dashboardMatch = url.match(/supabase\.com\/dashboard\/project\/([a-zA-Z0-9_-]+)/);
+  if (dashboardMatch && dashboardMatch[1]) {
+    return `https://${dashboardMatch[1]}.supabase.co`;
+  }
+
+  // Ensure protocol
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+
+  try {
+    const parsed = new URL(url);
+    // Supabase client expects strictly the origin without subpaths like /rest/v1
+    return parsed.origin;
+  } catch {
+    // Fallback: strip trailing slashes or subpaths
+    return url.replace(/\/+$/, '').replace(/\/rest\/v1.*$/i, '');
+  }
+}
+
+/**
+ * Sanitizes Supabase API key (removes quotes, 'Bearer ' prefix, whitespace).
+ */
+export function sanitizeSupabaseKey(rawKey: string): string {
+  let key = (rawKey || '').trim();
+  key = key.replace(/^['"]+|['"]+$/g, '');
+  key = key.replace(/^Bearer\s+/i, '');
+  return key;
+}
+
 export function getSupabaseConfig(): { url: string; anonKey: string; isConfigured: boolean } {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -12,8 +54,11 @@ export function getSupabaseConfig(): { url: string; anonKey: string; isConfigure
   const storedUrl = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_SUPABASE_URL_KEY) || '' : '';
   const storedKey = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_SUPABASE_KEY_KEY) || '' : '';
 
-  const url = storedUrl.trim() || envUrl.trim();
-  const anonKey = storedKey.trim() || envKey.trim();
+  const rawUrl = storedUrl.trim() || envUrl.trim();
+  const rawKey = storedKey.trim() || envKey.trim();
+
+  const url = sanitizeSupabaseUrl(rawUrl);
+  const anonKey = sanitizeSupabaseKey(rawKey);
 
   const isConfigured = Boolean(
     url &&
@@ -29,14 +74,17 @@ export function getSupabaseConfig(): { url: string; anonKey: string; isConfigure
 
 export function saveSupabaseCustomConfig(url: string, anonKey: string): void {
   if (typeof window !== 'undefined') {
-    if (url.trim()) {
-      localStorage.setItem(STORAGE_SUPABASE_URL_KEY, url.trim());
+    const cleanUrl = sanitizeSupabaseUrl(url);
+    const cleanKey = sanitizeSupabaseKey(anonKey);
+
+    if (cleanUrl) {
+      localStorage.setItem(STORAGE_SUPABASE_URL_KEY, cleanUrl);
     } else {
       localStorage.removeItem(STORAGE_SUPABASE_URL_KEY);
     }
 
-    if (anonKey.trim()) {
-      localStorage.setItem(STORAGE_SUPABASE_KEY_KEY, anonKey.trim());
+    if (cleanKey) {
+      localStorage.setItem(STORAGE_SUPABASE_KEY_KEY, cleanKey);
     } else {
       localStorage.removeItem(STORAGE_SUPABASE_KEY_KEY);
     }

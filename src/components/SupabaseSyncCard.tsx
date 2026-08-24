@@ -15,11 +15,14 @@ import {
   Layers,
   Save,
   Key,
-  Globe
+  Globe,
+  Info
 } from 'lucide-react';
 import {
   getSupabaseConfig,
   saveSupabaseCustomConfig,
+  sanitizeSupabaseUrl,
+  sanitizeSupabaseKey,
   testSupabaseConnection,
   fetchInspectionsFromSupabase,
   syncAllInspectionsToSupabase,
@@ -41,7 +44,7 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
   const [config, setConfig] = useState(getSupabaseConfig());
   const [supabaseUrlInput, setSupabaseUrlInput] = useState(config.url);
   const [supabaseKeyInput, setSupabaseKeyInput] = useState(config.anonKey);
-  const [isEditingKeys, setIsEditingKeys] = useState(false);
+  const [isEditingKeys, setIsEditingKeys] = useState(!config.isConfigured);
 
   const [testingStatus, setTestingStatus] = useState<{
     tested: boolean;
@@ -69,13 +72,19 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
   }, []);
 
   const handleSaveCredentials = () => {
-    saveSupabaseCustomConfig(supabaseUrlInput, supabaseKeyInput);
+    const cleanUrl = sanitizeSupabaseUrl(supabaseUrlInput);
+    const cleanKey = sanitizeSupabaseKey(supabaseKeyInput);
+
+    setSupabaseUrlInput(cleanUrl);
+    setSupabaseKeyInput(cleanKey);
+
+    saveSupabaseCustomConfig(cleanUrl, cleanKey);
     const updated = getSupabaseConfig();
     setConfig(updated);
     setIsEditingKeys(false);
 
     if (updated.isConfigured) {
-      onShowToast('success', 'Credenciales de Supabase guardadas.', 'Configuración Actualizada');
+      onShowToast('success', 'Credenciales de Supabase guardadas y normalizadas.', 'Configuración Actualizada');
       handleTestConnection(true);
     } else {
       onShowToast('info', 'Supabase deshabilitado o datos incompletos.', 'Ajuste de Conexión');
@@ -241,9 +250,14 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
         {isEditingKeys ? (
           <div className="space-y-3 pt-2">
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Project URL (Ej: <code>https://abcdefgh.supabase.co</code>)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Project URL (URL base de tu proyecto)
+                </label>
+                <span className="text-[10px] text-[#5C788A] dark:text-slate-400">
+                  Debe terminar en <strong>.supabase.co</strong>
+                </span>
+              </div>
               <div className="relative">
                 <input
                   type="text"
@@ -253,12 +267,20 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
                   className="w-full text-xs font-mono px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#CC8B79] focus:outline-none"
                 />
               </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                💡 Pega la URL base (ej: <code>https://tuid.supabase.co</code>). No agregues <code>/rest/v1</code> ni barras al final.
+              </p>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Anon Public API Key
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Anon Public API Key
+                </label>
+                <span className="text-[10px] text-slate-400">
+                  Clave pública (anon)
+                </span>
+              </div>
               <div className="relative">
                 <input
                   type="password"
