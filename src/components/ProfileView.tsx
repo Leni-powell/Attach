@@ -106,10 +106,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
               <div>
                 <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                  Modo Claro
+                  {settings.darkMode ? 'Modo Oscuro' : 'Modo Claro'}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Optimizado para visualización diurna en terreno.
+                  {settings.darkMode
+                    ? 'Optimizado para faenas nocturnas y ahorro de batería.'
+                    : 'Optimizado para visualización diurna en terreno.'}
                 </p>
               </div>
             </div>
