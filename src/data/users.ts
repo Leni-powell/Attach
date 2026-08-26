@@ -10,7 +10,7 @@ export interface AppUser {
 export const APP_USERS: AppUser[] = [
   {
     email: 'leni@leni.cl',
-    alternateEmails: ['leni@leni.com', 'leni@attach.cl'],
+    alternateEmails: ['leni', 'leni@leni.com', 'leni@attach.cl', 'lenipowell@gmail.com'],
     password: '456789',
     userSession: {
       email: 'leni@leni.cl',
@@ -21,7 +21,7 @@ export const APP_USERS: AppUser[] = [
   },
   {
     email: 'admin1@admin1.cl',
-    alternateEmails: ['admin1@attach.cl', 'admin1@admin.cl'],
+    alternateEmails: ['admin1', 'admin1@admin', 'admin1@attach.cl', 'admin1@admin.cl'],
     password: '123456',
     userSession: {
       email: 'admin1@admin1.cl',
@@ -32,7 +32,7 @@ export const APP_USERS: AppUser[] = [
   },
   {
     email: 'admin2@admin2.cl',
-    alternateEmails: ['admin2@attach.cl', 'admin2@admin.cl'],
+    alternateEmails: ['admin2', 'admin2@admin', 'admin2@attach.cl', 'admin2@admin.cl'],
     password: '789456',
     userSession: {
       email: 'admin2@admin2.cl',

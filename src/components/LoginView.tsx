@@ -30,13 +30,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    const cleanEmail = email.trim();
+    let cleanEmail = email.trim();
     const cleanPassword = password.trim();
 
     if (!cleanEmail || !cleanPassword) {
       setErrorMsg('Por favor ingrese su correo electrónico y contraseña.');
       return;
     }
+
+    if (cleanEmail.includes('supabase.co') || cleanEmail.startsWith('http://') || cleanEmail.startsWith('https://')) {
+      setErrorMsg('Ha ingresado una dirección web en lugar de un correo. Utilice uno de los usuarios habilitados: leni@leni.cl, admin1@admin1.cl o admin2@admin2.cl');
+      return;
+    }
+
+    // Shorthand resolution
+    if (cleanEmail.toLowerCase() === 'leni') cleanEmail = 'leni@leni.cl';
+    if (cleanEmail.toLowerCase() === 'admin1') cleanEmail = 'admin1@admin1.cl';
+    if (cleanEmail.toLowerCase() === 'admin2') cleanEmail = 'admin2@admin2.cl';
 
     setIsLoading(true);
 
@@ -85,28 +95,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
           return;
         }
       } else {
-        // Sign in with Supabase Auth
+        // First check standard configured users (Leni, Admin1, Admin2)
+        const demoUser = findUserByCredentials(cleanEmail, cleanPassword);
+
+        // Sign in with Supabase Auth if available
         if (supabaseConfig.isConfigured) {
-          const { userSession, error } = await signInWithSupabase(cleanEmail, cleanPassword);
+          const { userSession } = await signInWithSupabase(cleanEmail, cleanPassword);
 
           if (userSession) {
             onLoginSuccess(userSession);
             return;
           }
 
-          // If Supabase returns error, check if user exists in fallback demo users or display error
-          const demoUser = findUserByCredentials(cleanEmail, cleanPassword);
+          // If Supabase failed or user is not in Supabase yet, but matches known user:
           if (demoUser) {
-            // Attempt to auto-create user in Supabase for future logins or proceed with demo
-            const autoReg = await signUpWithSupabase(cleanEmail, cleanPassword, {
+            // Attempt background auto-registration in Supabase
+            signUpWithSupabase(cleanEmail, cleanPassword, {
               name: demoUser.name,
               role: demoUser.role,
               companyName: demoUser.companyName
-            });
-            if (autoReg.userSession) {
-              onLoginSuccess(autoReg.userSession);
-              return;
-            }
+            }).catch(() => {});
+
             onLoginSuccess({
               ...demoUser,
               id: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
@@ -115,15 +124,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLoginSuccess }) => {
             return;
           }
 
-          setErrorMsg(error || 'Credenciales incorrectas en Supabase. Verifique correo y contraseña.');
+          setErrorMsg('Credenciales incorrectas. Verifique correo y contraseña o haga clic en los usuarios de acceso rápido abajo.');
           setIsLoading(false);
           return;
         } else {
-          // Supabase is not configured in client, use local credentials verification
-          const authenticatedUser = findUserByCredentials(cleanEmail, cleanPassword);
-          if (authenticatedUser) {
+          // Local credentials verification
+          if (demoUser) {
             onLoginSuccess({
-              ...authenticatedUser,
+              ...demoUser,
               id: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
               userId: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
             });
