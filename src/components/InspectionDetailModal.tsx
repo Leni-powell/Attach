@@ -307,6 +307,16 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" /> {inspection.date}
               </span>
+              {(inspection.user_id || inspection.userId || inspection.createdByName || inspection.createdByEmail) && (
+                <span className="flex items-center gap-1 text-[11px] font-medium text-[#5E5365] dark:text-[#CC8B79] bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md">
+                  <span>Auditor: {inspection.createdByName || inspection.createdByEmail || 'Registrado'}</span>
+                  {(inspection.user_id || inspection.userId) && (
+                    <span className="font-mono text-[10px] text-slate-400">
+                      (UID: {(inspection.user_id || inspection.userId || '').substring(0, 8)}...)
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
           </div>
 

@@ -23,7 +23,10 @@ import {
   getSupabaseConfig,
   fetchInspectionsFromSupabase,
   saveInspectionToSupabase,
-  deleteInspectionFromSupabase
+  deleteInspectionFromSupabase,
+  getCurrentSupabaseUser,
+  onSupabaseAuthStateChange,
+  signOutSupabase
 } from './lib/supabase';
 
 // Component imports
@@ -153,18 +156,45 @@ export default function App() {
     saveStoredInspections(newInspections);
   };
 
-  // Initial Supabase auto-pull on launch if configured
+  // Initial Supabase auto-pull & auth listener on launch if configured
   useEffect(() => {
     const config = getSupabaseConfig();
     if (config.isConfigured) {
-      fetchInspectionsFromSupabase().then((res) => {
-        if (res.data && res.data.length > 0) {
-          setInspections(res.data);
-          saveStoredInspections(res.data);
+      // 1. Recover active Supabase Auth session if present
+      getCurrentSupabaseUser()
+        .then((sbUser) => {
+          if (sbUser && (!user.isAuthenticated || !user.id)) {
+            setUser(sbUser);
+            saveStoredSession(sbUser);
+          }
+        })
+        .catch((err) => {
+          console.warn('Error fetching Supabase auth session:', err);
+        });
+
+      // 2. Listen to real-time auth state changes
+      const { unsubscribe } = onSupabaseAuthStateChange((sbUser) => {
+        if (sbUser) {
+          setUser(sbUser);
+          saveStoredSession(sbUser);
         }
-      }).catch((err) => {
-        console.warn('Silent Supabase initial fetch failed, using local storage:', err);
       });
+
+      // 3. Fetch inspections from cloud
+      fetchInspectionsFromSupabase()
+        .then((res) => {
+          if (res.data && res.data.length > 0) {
+            setInspections(res.data);
+            saveStoredInspections(res.data);
+          }
+        })
+        .catch((err) => {
+          console.warn('Silent Supabase initial fetch failed, using local storage:', err);
+        });
+
+      return () => {
+        unsubscribe();
+      };
     }
   }, []);
 
@@ -176,7 +206,12 @@ export default function App() {
     triggerNotification('Attach • Reportabilidad', 'Sesión iniciada correctamente en terreno.');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOutSupabase();
+    } catch (err) {
+      console.warn('Error during Supabase sign out:', err);
+    }
     const loggedOut: UserSession = {
       ...DEFAULT_USER,
       isAuthenticated: false
@@ -202,31 +237,62 @@ export default function App() {
     }
   };
 
-  // Inspection Actions with async Supabase cloud persistence
+  // Inspection Actions with user_id association and async Supabase cloud persistence
   const handleCreateInspection = (newInsp: Inspection) => {
-    const updated = [newInsp, ...inspections];
-    handleSaveInspections(updated);
-    showToast('success', `Inspección para ${newInsp.company} creada exitosamente.`, 'Inspección Creada');
-    triggerNotification('Nueva Inspección', `Se registró pauta para ${newInsp.company} (${newInsp.type}).`);
+    const finalUserId = user.id || user.userId || `usr-${user.email}`;
+    const inspectionWithUser: Inspection = {
+      ...newInsp,
+      userId: finalUserId,
+      user_id: finalUserId,
+      createdByEmail: user.email,
+      createdByName: user.name
+    };
 
-    // Asynchronous background cloud save
-    saveInspectionToSupabase(newInsp).catch((err) => console.warn('Supabase async save:', err));
+    const updated = [inspectionWithUser, ...inspections];
+    handleSaveInspections(updated);
+    showToast('success', `Inspección para ${inspectionWithUser.company} creada exitosamente.`, 'Inspección Creada');
+    triggerNotification('Nueva Inspección', `Se registró pauta para ${inspectionWithUser.company} (${inspectionWithUser.type}).`);
+
+    // Asynchronous background cloud save with authenticated user_id
+    saveInspectionToSupabase(
+      inspectionWithUser,
+      finalUserId,
+      user.email,
+      user.name
+    ).catch((err) => console.warn('Supabase async save:', err));
   };
 
   const handleUpdateInspection = (updatedInsp: Inspection) => {
-    const updatedList = inspections.map((i) => (i.id === updatedInsp.id ? updatedInsp : i));
-    handleSaveInspections(updatedList);
-    setSelectedInspection(updatedInsp);
+    const finalUserId = updatedInsp.userId || updatedInsp.user_id || user.id || user.userId;
+    const finalCreatedEmail = updatedInsp.createdByEmail || user.email;
+    const finalCreatedName = updatedInsp.createdByName || user.name;
 
-    if (updatedInsp.status === 'completada' && selectedInspection?.status !== 'completada') {
+    const inspectionToSave: Inspection = {
+      ...updatedInsp,
+      userId: finalUserId,
+      user_id: finalUserId,
+      createdByEmail: finalCreatedEmail,
+      createdByName: finalCreatedName
+    };
+
+    const updatedList = inspections.map((i) => (i.id === inspectionToSave.id ? inspectionToSave : i));
+    handleSaveInspections(updatedList);
+    setSelectedInspection(inspectionToSave);
+
+    if (inspectionToSave.status === 'completada' && selectedInspection?.status !== 'completada') {
       showToast('success', '¡Inspección completada al 100%!', 'Auditoría Finalizada');
-      triggerNotification('Inspección Completada', `${updatedInsp.company} fue completada y validada.`);
+      triggerNotification('Inspección Completada', `${inspectionToSave.company} fue completada y validada.`);
     } else {
       showToast('info', 'Cambios guardados correctamente.');
     }
 
-    // Asynchronous background cloud save
-    saveInspectionToSupabase(updatedInsp).catch((err) => console.warn('Supabase async update:', err));
+    // Asynchronous background cloud save with user_id
+    saveInspectionToSupabase(
+      inspectionToSave,
+      finalUserId,
+      finalCreatedEmail,
+      finalCreatedName
+    ).catch((err) => console.warn('Supabase async update:', err));
   };
 
   const handleDeleteInspection = (id: string) => {

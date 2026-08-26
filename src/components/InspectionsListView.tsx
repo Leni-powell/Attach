@@ -323,6 +323,12 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
                       <Calendar className="w-3 h-3" />
                       <span>{insp.date}</span>
                     </span>
+
+                    {(insp.createdByName || insp.createdByEmail) && (
+                      <span className="hidden md:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium truncate max-w-[120px]">
+                        {insp.createdByName || insp.createdByEmail}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1 text-[#5E5365] dark:text-[#CC8B79] text-xs font-bold">

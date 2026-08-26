@@ -11,7 +11,7 @@ export const APP_USERS: AppUser[] = [
   {
     email: 'leni@leni.cl',
     alternateEmails: ['leni@leni.com', 'leni@attach.cl'],
-    password: '1111',
+    password: '456789',
     userSession: {
       email: 'leni@leni.cl',
       name: 'Leni Powell',
@@ -20,24 +20,24 @@ export const APP_USERS: AppUser[] = [
     }
   },
   {
-    email: 'admin@admin',
-    alternateEmails: ['admin@admin.cl', 'admin@admin.com', 'admin@attach.cl'],
-    password: '4567',
+    email: 'admin1@admin1.cl',
+    alternateEmails: ['admin1@attach.cl', 'admin1@admin.cl'],
+    password: '123456',
     userSession: {
-      email: 'admin@admin',
-      name: 'Admin Supervisor',
-      role: 'Subusuario / Supervisor Técnico Senior',
+      email: 'admin1@admin1.cl',
+      name: 'Administrador 1',
+      role: 'Supervisor Técnico / Administrador',
       companyName: 'Attach • Reportabilidad Inteligente'
     }
   },
   {
-    email: 'invitado@invitado',
-    alternateEmails: ['invitado@invitado.cl', 'invitado@invitado.com', 'invitado@attach.cl'],
-    password: '4568',
+    email: 'admin2@admin2.cl',
+    alternateEmails: ['admin2@attach.cl', 'admin2@admin.cl'],
+    password: '789456',
     userSession: {
-      email: 'invitado@invitado',
-      name: 'Usuario Invitado',
-      role: 'Usuario Invitado / Auditor Observador',
+      email: 'admin2@admin2.cl',
+      name: 'Administrador 2',
+      role: 'Supervisor Técnico / Administrador',
       companyName: 'Attach • Reportabilidad Inteligente'
     }
   }

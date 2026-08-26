@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import { Inspection, UserSession } from '../types';
 
 // Read config from Vite client-side environment variables or localStorage override
@@ -122,6 +122,219 @@ export function getSupabaseClient(): SupabaseClient | null {
   }
 }
 
+// -------------------------------------------------------------
+// SUPABASE AUTHENTICATION HELPERS
+// -------------------------------------------------------------
+
+/**
+ * Maps a Supabase Auth User object to our application UserSession interface.
+ */
+export function mapSupabaseUserToSession(sbUser: User | null): UserSession | null {
+  if (!sbUser) return null;
+
+  const metadata = sbUser.user_metadata || {};
+  const email = sbUser.email || '';
+  
+  // Build a friendly name from metadata or email username
+  const name =
+    metadata.name ||
+    metadata.full_name ||
+    (email ? email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : 'Supervisor Attach');
+
+  const role = metadata.role || 'Supervisor Técnico';
+  const companyName = metadata.company_name || metadata.companyName || 'Attach • Reportabilidad Inteligente';
+  const rut = metadata.rut || '';
+
+  return {
+    id: sbUser.id,
+    userId: sbUser.id,
+    email,
+    name,
+    role,
+    companyName,
+    rut,
+    isAuthenticated: true,
+  };
+}
+
+/**
+ * Sign in using Supabase Auth (Email + Password)
+ */
+export async function signInWithSupabase(
+  email: string,
+  password: string
+): Promise<{ userSession: UserSession | null; error: string | null }> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      userSession: null,
+      error: 'Supabase no está configurado. Configure la URL y Clave Anon en los ajustes.',
+    };
+  }
+
+  try {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      let friendlyMessage = error.message;
+      if (error.message.includes('Invalid login credentials')) {
+        friendlyMessage = 'Credenciales incorrectas. Verifique su correo y contraseña en Supabase.';
+      } else if (error.message.includes('Email not confirmed')) {
+        friendlyMessage = 'El correo electrónico no ha sido confirmado en Supabase.';
+      }
+      return { userSession: null, error: friendlyMessage };
+    }
+
+    if (!data.user) {
+      return { userSession: null, error: 'No se pudo obtener el usuario autenticado.' };
+    }
+
+    const session = mapSupabaseUserToSession(data.user);
+    return { userSession: session, error: null };
+  } catch (err: any) {
+    return {
+      userSession: null,
+      error: err.message || 'Error de conexión con Supabase Auth.',
+    };
+  }
+}
+
+/**
+ * Sign up a new user using Supabase Auth (Email + Password + Metadata)
+ */
+export async function signUpWithSupabase(
+  email: string,
+  password: string,
+  metadata?: { name?: string; role?: string; companyName?: string; rut?: string }
+): Promise<{
+  userSession: UserSession | null;
+  error: string | null;
+  needsEmailConfirmation?: boolean;
+}> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      userSession: null,
+      error: 'Supabase no está configurado. Ingrese la URL y Clave Anon.',
+    };
+  }
+
+  try {
+    const { data, error } = await client.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        data: {
+          name: metadata?.name || email.trim().split('@')[0],
+          role: metadata?.role || 'Supervisor Técnico',
+          company_name: metadata?.companyName || 'Attach • Reportabilidad Inteligente',
+          rut: metadata?.rut || '',
+        },
+      },
+    });
+
+    if (error) {
+      return { userSession: null, error: error.message };
+    }
+
+    if (data.user) {
+      // If Supabase has email confirmation enabled and session is empty
+      if (!data.session) {
+        return {
+          userSession: mapSupabaseUserToSession(data.user),
+          error: null,
+          needsEmailConfirmation: true,
+        };
+      }
+
+      return {
+        userSession: mapSupabaseUserToSession(data.user),
+        error: null,
+        needsEmailConfirmation: false,
+      };
+    }
+
+    return { userSession: null, error: 'No se pudo crear la cuenta de usuario.' };
+  } catch (err: any) {
+    return {
+      userSession: null,
+      error: err.message || 'Error al registrar usuario en Supabase.',
+    };
+  }
+}
+
+/**
+ * Sign out from Supabase Auth
+ */
+export async function signOutSupabase(): Promise<{ success: boolean; error: string | null }> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: true, error: null };
+  }
+
+  try {
+    const { error } = await client.auth.signOut();
+    if (error) {
+      return { success: false, error: error.message };
+    }
+    return { success: true, error: null };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Error al cerrar sesión' };
+  }
+}
+
+/**
+ * Get current active Supabase session user if any exists
+ */
+export async function getCurrentSupabaseUser(): Promise<UserSession | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+
+  try {
+    const { data } = await client.auth.getSession();
+    if (data?.session?.user) {
+      return mapSupabaseUserToSession(data.session.user);
+    }
+    return null;
+  } catch (err) {
+    console.warn('Error fetching Supabase session:', err);
+    return null;
+  }
+}
+
+/**
+ * Subscribes to Supabase Auth state changes
+ */
+export function onSupabaseAuthStateChange(
+  callback: (session: UserSession | null) => void
+): { unsubscribe: () => void } {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { unsubscribe: () => {} };
+  }
+
+  const { data } = client.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      callback(mapSupabaseUserToSession(session.user));
+    } else {
+      callback(null);
+    }
+  });
+
+  return {
+    unsubscribe: () => {
+      data.subscription.unsubscribe();
+    },
+  };
+}
+
+// -------------------------------------------------------------
+// INSPECTIONS DATA OPERATIONS & USER ASSOCIATION
+// -------------------------------------------------------------
+
 /**
  * Tests connection to Supabase instance and checks if the required 'inspections' table exists.
  */
@@ -174,9 +387,9 @@ export async function testSupabaseConnection(): Promise<{
 }
 
 /**
- * Fetch all inspections from Supabase
+ * Fetch all inspections from Supabase, preserving user_id and creator information
  */
-export async function fetchInspectionsFromSupabase(): Promise<{
+export async function fetchInspectionsFromSupabase(userIdFilter?: string): Promise<{
   data: Inspection[] | null;
   error: string | null;
 }> {
@@ -186,10 +399,16 @@ export async function fetchInspectionsFromSupabase(): Promise<{
   }
 
   try {
-    const { data, error } = await client
+    let query = client
       .from('inspections')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (userIdFilter) {
+      query = query.eq('user_id', userIdFilter);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       return { data: null, error: error.message };
@@ -201,16 +420,29 @@ export async function fetchInspectionsFromSupabase(): Promise<{
 
     // Map database snake_case or raw json column to App Inspection interface
     const mapped: Inspection[] = data.map((row: any) => {
-      // Support both structured json columns or direct attributes
+      const payload = row.payload || {};
+      const uId = row.user_id || payload.userId || payload.user_id || undefined;
+      const createdEmail = row.created_by_email || payload.createdByEmail || undefined;
+      const createdName = row.created_by_name || payload.createdByName || undefined;
+
+      // Support structured payload or direct attributes
       if (row.payload) {
         return {
           ...row.payload,
           id: row.id || row.payload.id,
+          userId: uId,
+          user_id: uId,
+          createdByEmail: createdEmail,
+          createdByName: createdName,
         };
       }
 
       return {
         id: row.id,
+        userId: uId,
+        user_id: uId,
+        createdByEmail: createdEmail,
+        createdByName: createdName,
         type: row.type || 'Seguridad',
         company: row.company || '',
         faena: row.faena || '',
@@ -234,9 +466,14 @@ export async function fetchInspectionsFromSupabase(): Promise<{
 }
 
 /**
- * Upsert / Save a single inspection to Supabase
+ * Upsert / Save a single inspection to Supabase with user_id association
  */
-export async function saveInspectionToSupabase(inspection: Inspection): Promise<{
+export async function saveInspectionToSupabase(
+  inspection: Inspection,
+  currentUserId?: string,
+  currentUserEmail?: string,
+  currentUserName?: string
+): Promise<{
   success: boolean;
   error: string | null;
 }> {
@@ -246,8 +483,21 @@ export async function saveInspectionToSupabase(inspection: Inspection): Promise<
   }
 
   try {
+    const finalUserId = inspection.userId || inspection.user_id || currentUserId || null;
+    const finalCreatedEmail = inspection.createdByEmail || currentUserEmail || null;
+    const finalCreatedName = inspection.createdByName || currentUserName || null;
+
+    const inspectionWithUser: Inspection = {
+      ...inspection,
+      userId: finalUserId || undefined,
+      user_id: finalUserId || undefined,
+      createdByEmail: finalCreatedEmail || undefined,
+      createdByName: finalCreatedName || undefined,
+    };
+
     const dbRow = {
       id: inspection.id,
+      user_id: finalUserId,
       type: inspection.type,
       company: inspection.company,
       faena: inspection.faena,
@@ -259,9 +509,11 @@ export async function saveInspectionToSupabase(inspection: Inspection): Promise<
       evidences: inspection.evidences,
       signature: inspection.signature || null,
       notes: inspection.notes || '',
+      created_by_email: finalCreatedEmail,
+      created_by_name: finalCreatedName,
       created_at: inspection.createdAt,
       updated_at: inspection.updatedAt,
-      payload: inspection, // Also store complete JSON payload for safety & instant deserialization
+      payload: inspectionWithUser, // Store complete JSON payload including user_id
     };
 
     const { error } = await client
@@ -281,9 +533,14 @@ export async function saveInspectionToSupabase(inspection: Inspection): Promise<
 }
 
 /**
- * Batch sync multiple inspections to Supabase
+ * Batch sync multiple inspections to Supabase with user association
  */
-export async function syncAllInspectionsToSupabase(inspections: Inspection[]): Promise<{
+export async function syncAllInspectionsToSupabase(
+  inspections: Inspection[],
+  currentUserId?: string,
+  currentUserEmail?: string,
+  currentUserName?: string
+): Promise<{
   success: boolean;
   syncedCount: number;
   error: string | null;
@@ -298,23 +555,40 @@ export async function syncAllInspectionsToSupabase(inspections: Inspection[]): P
   }
 
   try {
-    const rows = inspections.map((insp) => ({
-      id: insp.id,
-      type: insp.type,
-      company: insp.company,
-      faena: insp.faena,
-      location: insp.location,
-      date: insp.date,
-      status: insp.status,
-      checklist: insp.checklist,
-      findings: insp.findings,
-      evidences: insp.evidences,
-      signature: insp.signature || null,
-      notes: insp.notes || '',
-      created_at: insp.createdAt,
-      updated_at: insp.updatedAt,
-      payload: insp,
-    }));
+    const rows = inspections.map((insp) => {
+      const finalUserId = insp.userId || insp.user_id || currentUserId || null;
+      const finalCreatedEmail = insp.createdByEmail || currentUserEmail || null;
+      const finalCreatedName = insp.createdByName || currentUserName || null;
+
+      const inspWithUser = {
+        ...insp,
+        userId: finalUserId || undefined,
+        user_id: finalUserId || undefined,
+        createdByEmail: finalCreatedEmail || undefined,
+        createdByName: finalCreatedName || undefined,
+      };
+
+      return {
+        id: insp.id,
+        user_id: finalUserId,
+        type: insp.type,
+        company: insp.company,
+        faena: insp.faena,
+        location: insp.location,
+        date: insp.date,
+        status: insp.status,
+        checklist: insp.checklist,
+        findings: insp.findings,
+        evidences: insp.evidences,
+        signature: insp.signature || null,
+        notes: insp.notes || '',
+        created_by_email: finalCreatedEmail,
+        created_by_name: finalCreatedName,
+        created_at: insp.createdAt,
+        updated_at: insp.updatedAt,
+        payload: inspWithUser,
+      };
+    });
 
     const { error } = await client
       .from('inspections')
@@ -356,9 +630,10 @@ export async function deleteInspectionFromSupabase(id: string): Promise<{
 /**
  * SQL creation script provided for users to run on Supabase SQL Editor
  */
-export const SUPABASE_SCHEMA_SQL = `-- 1. TABLA PRINCIPAL DE INSPECCIONES
+export const SUPABASE_SCHEMA_SQL = `-- 1. TABLA PRINCIPAL DE INSPECCIONES (Vinculada a usuario autenticado de Supabase)
 CREATE TABLE IF NOT EXISTS public.inspections (
   id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   type TEXT NOT NULL,
   company TEXT NOT NULL,
   faena TEXT NOT NULL,
@@ -370,6 +645,8 @@ CREATE TABLE IF NOT EXISTS public.inspections (
   evidences JSONB DEFAULT '[]'::jsonb,
   signature JSONB,
   notes TEXT,
+  created_by_email TEXT,
+  created_by_name TEXT,
   payload JSONB,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -378,16 +655,18 @@ CREATE TABLE IF NOT EXISTS public.inspections (
 -- 2. HABILITAR ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.inspections ENABLE ROW LEVEL SECURITY;
 
--- 3. POLÍTICA DE ACCESO (Permitir lectura y escritura a clientes autenticados / clave anon)
-CREATE POLICY "Permitir acceso completo a inspecciones" 
+-- 3. POLÍTICA DE ACCESO (Permitir lectura y escritura a clientes autenticados y clave anon)
+CREATE POLICY "Permitir acceso a inspecciones" 
 ON public.inspections 
 FOR ALL 
 TO anon, authenticated 
 USING (true) 
 WITH CHECK (true);
 
--- 4. ÍNDICES PARA BÚSQUEDA Y RENDIMIENTO
+-- 4. ÍNDICES PARA BÚSQUEDA, HISTORIAL Y RENDIMIENTO
+CREATE INDEX IF NOT EXISTS idx_inspections_user_id ON public.inspections(user_id);
 CREATE INDEX IF NOT EXISTS idx_inspections_company ON public.inspections(company);
 CREATE INDEX IF NOT EXISTS idx_inspections_date ON public.inspections(date);
 CREATE INDEX IF NOT EXISTS idx_inspections_status ON public.inspections(status);
 `;
+

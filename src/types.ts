@@ -35,6 +35,10 @@ export interface SupervisorSignature {
 
 export interface Inspection {
   id: string;
+  userId?: string;
+  user_id?: string;
+  createdByEmail?: string;
+  createdByName?: string;
   type: InspectionType;
   company: string;
   faena: string;
@@ -51,6 +55,8 @@ export interface Inspection {
 }
 
 export interface UserSession {
+  id?: string;
+  userId?: string;
   isAuthenticated: boolean;
   email: string;
   name: string;
