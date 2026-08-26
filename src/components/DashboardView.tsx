@@ -211,8 +211,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           inspections.map((insp) => {
             const spec = getSpecialtyBadge(insp.type);
             const statusMeta = getStatusPill(insp.status);
-            const totalChk = insp.checklist.length;
-            const doneChk = insp.checklist.filter((i) => i.completed).length;
+            const chk = Array.isArray(insp.checklist) ? insp.checklist : [];
+            const totalChk = chk.length;
+            const doneChk = chk.filter((i) => i.completed).length;
             const pct = totalChk > 0 ? Math.round((doneChk / totalChk) * 100) : 0;
 
             return (

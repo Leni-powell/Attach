@@ -87,13 +87,15 @@ export function findUserByCredentials(rawEmail: string, rawPassword: string): Us
     };
   }
 
-  // If email matches admin1 or admin
+  // If email matches admin1 or admin or variants like 1admin
   if (
     normalizedEmail === 'admin1@admin1.cl' ||
     normalizedEmail === 'admin1' ||
     normalizedEmail === 'admin@admin' ||
     normalizedEmail === 'admin@admin.cl' ||
-    normalizedEmail === 'admin'
+    normalizedEmail === 'admin' ||
+    normalizedEmail.includes('admin1') ||
+    normalizedEmail.includes('1admin')
   ) {
     return {
       isAuthenticated: true,
@@ -104,11 +106,13 @@ export function findUserByCredentials(rawEmail: string, rawPassword: string): Us
     };
   }
 
-  // If email matches admin2
+  // If email matches admin2 or variants like 2admin
   if (
     normalizedEmail === 'admin2@admin2.cl' ||
     normalizedEmail === 'admin2' ||
-    normalizedEmail === 'admin2@admin'
+    normalizedEmail === 'admin2@admin' ||
+    normalizedEmail.includes('admin2') ||
+    normalizedEmail.includes('2admin')
   ) {
     return {
       isAuthenticated: true,

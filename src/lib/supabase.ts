@@ -425,37 +425,27 @@ export async function fetchInspectionsFromSupabase(userIdFilter?: string): Promi
       const createdEmail = row.created_by_email || payload.createdByEmail || undefined;
       const createdName = row.created_by_name || payload.createdByName || undefined;
 
-      // Support structured payload or direct attributes
-      if (row.payload) {
-        return {
-          ...row.payload,
-          id: row.id || row.payload.id,
-          userId: uId,
-          user_id: uId,
-          createdByEmail: createdEmail,
-          createdByName: createdName,
-        };
-      }
+      const baseItem = row.payload ? { ...row.payload } : { ...row };
 
       return {
-        id: row.id,
+        id: row.id || baseItem.id,
         userId: uId,
         user_id: uId,
         createdByEmail: createdEmail,
         createdByName: createdName,
-        type: row.type || 'Seguridad',
-        company: row.company || '',
-        faena: row.faena || '',
-        location: row.location || '',
-        date: row.date || new Date().toISOString().split('T')[0],
-        status: row.status || 'pendiente',
-        checklist: Array.isArray(row.checklist) ? row.checklist : [],
-        findings: Array.isArray(row.findings) ? row.findings : [],
-        evidences: Array.isArray(row.evidences) ? row.evidences : [],
-        signature: row.signature || null,
-        notes: row.notes || '',
-        createdAt: row.created_at || row.createdAt || new Date().toISOString(),
-        updatedAt: row.updated_at || row.updatedAt || new Date().toISOString(),
+        type: baseItem.type || row.type || 'Seguridad',
+        company: baseItem.company || row.company || '',
+        faena: baseItem.faena || row.faena || '',
+        location: baseItem.location || row.location || '',
+        date: baseItem.date || row.date || new Date().toISOString().split('T')[0],
+        status: baseItem.status || row.status || 'pendiente',
+        checklist: Array.isArray(baseItem.checklist) ? baseItem.checklist : (Array.isArray(row.checklist) ? row.checklist : []),
+        findings: Array.isArray(baseItem.findings) ? baseItem.findings : (Array.isArray(row.findings) ? row.findings : []),
+        evidences: Array.isArray(baseItem.evidences) ? baseItem.evidences : (Array.isArray(row.evidences) ? row.evidences : []),
+        signature: baseItem.signature || row.signature || null,
+        notes: baseItem.notes || row.notes || '',
+        createdAt: baseItem.createdAt || row.created_at || new Date().toISOString(),
+        updatedAt: baseItem.updatedAt || row.updated_at || new Date().toISOString(),
       };
     });
 

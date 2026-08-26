@@ -80,33 +80,108 @@ export default function App() {
   const isSuper = useMemo(() => isSuperUser(user), [user]);
 
   // Current user key identifiers
-  const currentEmail = (user.email || '').toLowerCase().trim();
-  const currentUserId = user.id || user.userId || `usr-${currentEmail}`;
+  const currentEmail = (user?.email || '').toLowerCase().trim();
+  const currentUserId = user?.id || user?.userId || `usr-${currentEmail}`;
+  const currentUserName = (user?.name || '').toLowerCase();
+
+  // Helper to determine ownership category of any inspection
+  const getInspectionOwner = useCallback((insp: Inspection): 'leni' | 'admin1' | 'admin2' | 'other' => {
+    if (!insp) return 'other';
+    const email = (insp.createdByEmail || '').toLowerCase().trim();
+    const name = (insp.createdByName || '').toLowerCase().trim();
+    const signer = (insp.signature?.supervisorName || '').toLowerCase().trim();
+    const uId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+
+    if (
+      email.includes('leni') ||
+      name.includes('leni') ||
+      signer.includes('leni') ||
+      uId.includes('leni')
+    ) {
+      return 'leni';
+    }
+
+    if (
+      email.includes('admin2') ||
+      email.includes('2admin') ||
+      name.includes('admin2') ||
+      name.includes('administrador 2') ||
+      signer.includes('admin2') ||
+      signer.includes('administrador 2') ||
+      uId.includes('admin2')
+    ) {
+      return 'admin2';
+    }
+
+    if (
+      email.includes('admin1') ||
+      email.includes('1admin') ||
+      name.includes('admin1') ||
+      name.includes('administrador 1') ||
+      signer.includes('admin1') ||
+      signer.includes('administrador 1') ||
+      uId.includes('admin1')
+    ) {
+      return 'admin1';
+    }
+
+    return 'other';
+  }, []);
 
   // Visible inspections based on role:
   // - Super Usuario: has full visibility of all inspections across all supervisors.
   // - Regular Supervisors (admin1, admin2, etc.): ONLY see inspections they created or are assigned to.
   const visibleInspections = useMemo(() => {
+    // 1. Super Usuario (Leni) has 360 full visibility
     if (isSuper) {
       return inspections;
     }
+
+    // 2. Admin 1 session (strictly isolated)
+    const isCurrentUserAdmin1 =
+      currentEmail.includes('admin1') ||
+      currentEmail.includes('1admin') ||
+      currentUserName.includes('admin1') ||
+      currentUserName.includes('administrador 1');
+
+    if (isCurrentUserAdmin1) {
+      return inspections.filter((insp) => {
+        const owner = getInspectionOwner(insp);
+        if (owner === 'admin2' || owner === 'leni') return false;
+        if (owner === 'admin1') return true;
+
+        const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
+        const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+        return inspEmail === currentEmail || inspUserId === currentUserId;
+      });
+    }
+
+    // 3. Admin 2 session (strictly isolated)
+    const isCurrentUserAdmin2 =
+      currentEmail.includes('admin2') ||
+      currentEmail.includes('2admin') ||
+      currentUserName.includes('admin2') ||
+      currentUserName.includes('administrador 2');
+
+    if (isCurrentUserAdmin2) {
+      return inspections.filter((insp) => {
+        const owner = getInspectionOwner(insp);
+        if (owner === 'admin1' || owner === 'leni') return false;
+        if (owner === 'admin2') return true;
+
+        const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
+        const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+        return inspEmail === currentEmail || inspUserId === currentUserId;
+      });
+    }
+
+    // 4. Any other specific supervisor
     return inspections.filter((insp) => {
       const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
       const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
-      const myUserId = currentUserId.toLowerCase().trim();
-
-      // Direct email match
-      if (inspEmail && currentEmail && inspEmail === currentEmail) return true;
-      // Direct user ID match
-      if (inspUserId && (inspUserId === myUserId || inspUserId === `usr-${currentEmail}`)) return true;
-      
-      // Fallback matching for admin1 / admin2 shorthand
-      if (currentEmail.includes('admin1') && (inspEmail.includes('admin1') || inspUserId.includes('admin1'))) return true;
-      if (currentEmail.includes('admin2') && (inspEmail.includes('admin2') || inspUserId.includes('admin2'))) return true;
-
-      return false;
+      return (inspEmail && inspEmail === currentEmail) || (inspUserId && inspUserId === currentUserId);
     });
-  }, [inspections, isSuper, currentEmail, currentUserId]);
+  }, [inspections, isSuper, currentEmail, currentUserId, currentUserName, getInspectionOwner]);
 
   // Global compliance rate calculation for visible scope
   const completedCount = useMemo(() => visibleInspections.filter((i) => i.status === 'completada').length, [visibleInspections]);
@@ -272,13 +347,15 @@ export default function App() {
 
   // Inspection Actions with user_id association and async Supabase cloud persistence
   const handleCreateInspection = (newInsp: Inspection) => {
-    const finalUserId = user.id || user.userId || `usr-${user.email}`;
+    const finalUserId = user?.id || user?.userId || `usr-${user?.email || 'anon'}`;
+    const userEmail = user?.email || '';
+    const userName = user?.name || 'Supervisor';
     const inspectionWithUser: Inspection = {
       ...newInsp,
       userId: finalUserId,
       user_id: finalUserId,
-      createdByEmail: user.email,
-      createdByName: user.name
+      createdByEmail: userEmail,
+      createdByName: userName
     };
 
     const updated = [inspectionWithUser, ...inspections];
@@ -290,15 +367,17 @@ export default function App() {
     saveInspectionToSupabase(
       inspectionWithUser,
       finalUserId,
-      user.email,
-      user.name
+      userEmail,
+      userName
     ).catch((err) => console.warn('Supabase async save:', err));
   };
 
   const handleUpdateInspection = (updatedInsp: Inspection) => {
-    const finalUserId = updatedInsp.userId || updatedInsp.user_id || user.id || user.userId;
-    const finalCreatedEmail = updatedInsp.createdByEmail || user.email;
-    const finalCreatedName = updatedInsp.createdByName || user.name;
+    const userEmail = user?.email || '';
+    const userName = user?.name || 'Supervisor';
+    const finalUserId = updatedInsp.userId || updatedInsp.user_id || user?.id || user?.userId || `usr-${userEmail || 'anon'}`;
+    const finalCreatedEmail = updatedInsp.createdByEmail || userEmail;
+    const finalCreatedName = updatedInsp.createdByName || userName;
 
     const inspectionToSave: Inspection = {
       ...updatedInsp,
@@ -544,7 +623,7 @@ export default function App() {
       <ReportExportModal
         isOpen={isReportModalOpen}
         inspection={reportModalInspection}
-        inspectionsList={inspections}
+        inspectionsList={visibleInspections}
         onClose={() => {
           setIsReportModalOpen(false);
           setReportModalInspection(null);

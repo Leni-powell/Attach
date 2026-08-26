@@ -234,8 +234,11 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
           {filteredInspections.map((insp) => {
             const spec = getSpecialtyBadge(insp.type);
             const statusMeta = getStatusPill(insp.status);
-            const total = insp.checklist.length;
-            const done = insp.checklist.filter((i) => i.completed).length;
+            const chk = Array.isArray(insp.checklist) ? insp.checklist : [];
+            const findings = Array.isArray(insp.findings) ? insp.findings : [];
+            const evidences = Array.isArray(insp.evidences) ? insp.evidences : [];
+            const total = chk.length;
+            const done = chk.filter((i) => i.completed).length;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
             return (
@@ -302,21 +305,21 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
                     {/* Findings count */}
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] ${
-                        insp.findings.length > 0
+                        findings.length > 0
                           ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-bold'
                           : 'text-slate-400'
                       }`}
                     >
                       <AlertTriangle className="w-3.5 h-3.5" />
                       <span>
-                        {insp.findings.length} {insp.findings.length === 1 ? 'hallazgo' : 'hallazgos'}
+                        {findings.length} {findings.length === 1 ? 'hallazgo' : 'hallazgos'}
                       </span>
                     </span>
 
                     {/* Evidences count */}
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold text-[11px] text-slate-500 dark:text-slate-400">
                       <ImageIcon className="w-3.5 h-3.5" />
-                      <span>{insp.evidences.length} fotos</span>
+                      <span>{evidences.length} fotos</span>
                     </span>
 
                     <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400">
