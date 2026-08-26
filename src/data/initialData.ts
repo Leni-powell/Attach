@@ -6,6 +6,10 @@ const SAMPLE_SIGNATURE_DATA_URL = 'data:image/svg+xml;utf8,<svg xmlns="http://ww
 export const INITIAL_INSPECTIONS: Inspection[] = [
   {
     id: 'insp-001',
+    userId: 'usr-leni@leni.cl',
+    user_id: 'usr-leni@leni.cl',
+    createdByEmail: 'leni@leni.cl',
+    createdByName: 'Leni Powell',
     type: 'Seguridad',
     company: 'Minera Los Andes',
     faena: 'Faena Norte',
@@ -54,7 +58,7 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
     ],
     signature: {
       dataUrl: SAMPLE_SIGNATURE_DATA_URL,
-      supervisorName: 'Admin Attach',
+      supervisorName: 'Leni Powell',
       date: '2026-08-18 16:45'
     },
     notes: 'Inspección de rutina completada. Se solicitó despeje inmediato de extintor.',
@@ -63,6 +67,10 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
   },
   {
     id: 'insp-002',
+    userId: 'usr-admin1@admin1.cl',
+    user_id: 'usr-admin1@admin1.cl',
+    createdByEmail: 'admin1@admin1.cl',
+    createdByName: 'Administrador 1',
     type: 'Calidad',
     company: 'Constructora Sur',
     faena: 'Edificio B',
@@ -107,6 +115,10 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
   },
   {
     id: 'insp-003',
+    userId: 'usr-admin2@admin2.cl',
+    user_id: 'usr-admin2@admin2.cl',
+    createdByEmail: 'admin2@admin2.cl',
+    createdByName: 'Administrador 2',
     type: 'Medio Ambiente',
     company: 'Energía Austral',
     faena: 'Sala máquinas',

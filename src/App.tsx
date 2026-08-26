@@ -19,6 +19,7 @@ import {
   DEFAULT_USER
 } from './utils/storage';
 import { AppSettings, Inspection, TabType, ToastMessage, UserSession } from './types';
+import { isSuperUser } from './data/users';
 import {
   getSupabaseConfig,
   fetchInspectionsFromSupabase,
@@ -75,9 +76,41 @@ export default function App() {
   // Effective online status
   const effectiveOnline = isBrowserOnline && !settings.simulatedOffline;
 
-  // Global compliance rate calculation
-  const completedCount = useMemo(() => inspections.filter((i) => i.status === 'completada').length, [inspections]);
-  const compliancePct = inspections.length > 0 ? Math.round((completedCount / inspections.length) * 100) : 100;
+  // Determine if current user is Super Usuario (Leni)
+  const isSuper = useMemo(() => isSuperUser(user), [user]);
+
+  // Current user key identifiers
+  const currentEmail = (user.email || '').toLowerCase().trim();
+  const currentUserId = user.id || user.userId || `usr-${currentEmail}`;
+
+  // Visible inspections based on role:
+  // - Super Usuario: has full visibility of all inspections across all supervisors.
+  // - Regular Supervisors (admin1, admin2, etc.): ONLY see inspections they created or are assigned to.
+  const visibleInspections = useMemo(() => {
+    if (isSuper) {
+      return inspections;
+    }
+    return inspections.filter((insp) => {
+      const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
+      const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+      const myUserId = currentUserId.toLowerCase().trim();
+
+      // Direct email match
+      if (inspEmail && currentEmail && inspEmail === currentEmail) return true;
+      // Direct user ID match
+      if (inspUserId && (inspUserId === myUserId || inspUserId === `usr-${currentEmail}`)) return true;
+      
+      // Fallback matching for admin1 / admin2 shorthand
+      if (currentEmail.includes('admin1') && (inspEmail.includes('admin1') || inspUserId.includes('admin1'))) return true;
+      if (currentEmail.includes('admin2') && (inspEmail.includes('admin2') || inspUserId.includes('admin2'))) return true;
+
+      return false;
+    });
+  }, [inspections, isSuper, currentEmail, currentUserId]);
+
+  // Global compliance rate calculation for visible scope
+  const completedCount = useMemo(() => visibleInspections.filter((i) => i.status === 'completada').length, [visibleInspections]);
+  const compliancePct = visibleInspections.length > 0 ? Math.round((completedCount / visibleInspections.length) * 100) : 100;
 
   // Toast dispatch helper
   const showToast = useCallback((type: ToastMessage['type'], message: string, title?: string) => {
@@ -335,8 +368,8 @@ export default function App() {
     );
   }
 
-  // Count pending inspections for badge
-  const pendingCount = inspections.filter((i) => i.status === 'pendiente').length;
+  // Count pending inspections for badge based on visible scope
+  const pendingCount = visibleInspections.filter((i) => i.status === 'pendiente').length;
 
   return (
     <div className="flex h-screen w-full bg-[#F5F7FA] dark:bg-slate-950 text-slate-800 dark:text-slate-100 overflow-hidden font-sans transition-colors">
@@ -407,7 +440,7 @@ export default function App() {
             {/* Active Screen Tab Router */}
             {activeTab === 'dashboard' && (
               <DashboardView
-                inspections={inspections}
+                inspections={visibleInspections}
                 onSelectInspection={handleOpenDetail}
                 onNewInspection={() => setIsNewModalOpen(true)}
                 onNavigateToInspections={() => setActiveTab('inspections')}
@@ -416,7 +449,7 @@ export default function App() {
 
             {activeTab === 'inspections' && (
               <InspectionsListView
-                inspections={inspections}
+                inspections={visibleInspections}
                 onSelectInspection={handleOpenDetail}
                 onNewInspection={() => setIsNewModalOpen(true)}
                 onUpdateInspection={handleUpdateInspection}
@@ -426,7 +459,7 @@ export default function App() {
 
             {activeTab === 'reports' && (
               <ReportsView
-                inspections={inspections}
+                inspections={visibleInspections}
                 onOpenReportModal={() => handleOpenReport()}
               />
             )}
@@ -435,7 +468,7 @@ export default function App() {
               <ProfileView
                 user={user}
                 settings={settings}
-                inspections={inspections}
+                inspections={visibleInspections}
                 onUpdateSettings={(newVals) => setSettings((prev) => ({ ...prev, ...newVals }))}
                 onResetAllData={handleResetAllData}
                 onLogout={handleLogout}

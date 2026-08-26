@@ -43,6 +43,18 @@ export const APP_USERS: AppUser[] = [
   }
 ];
 
+export function isSuperUser(user?: UserSession | null): boolean {
+  if (!user || !user.email) return false;
+  const email = user.email.toLowerCase().trim();
+  const role = (user.role || '').toLowerCase();
+  return (
+    email === 'leni@leni.cl' ||
+    email === 'lenipowell@gmail.com' ||
+    email.startsWith('leni@') ||
+    role.includes('super')
+  );
+}
+
 export function findUserByCredentials(rawEmail: string, rawPassword: string): UserSession | null {
   const normalizedEmail = rawEmail.trim().toLowerCase();
   const normalizedPassword = rawPassword.trim();

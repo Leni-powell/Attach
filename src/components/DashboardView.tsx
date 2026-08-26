@@ -190,56 +190,75 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Inspections in field list */}
       <div className="space-y-3">
-        {inspections.map((insp) => {
-          const spec = getSpecialtyBadge(insp.type);
-          const statusMeta = getStatusPill(insp.status);
-          const totalChk = insp.checklist.length;
-          const doneChk = insp.checklist.filter((i) => i.completed).length;
-          const pct = totalChk > 0 ? Math.round((doneChk / totalChk) * 100) : 0;
-
-          return (
-            <div
-              key={insp.id}
-              id={`inspection-card-${insp.id}`}
-              onClick={() => onSelectInspection(insp)}
-              className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#5E5365] dark:hover:border-[#CC8B79] transition-colors cursor-pointer active:scale-99"
+        {inspections.length === 0 ? (
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 text-center shadow-xs">
+            <ClipboardCheck className="w-12 h-12 text-[#CC8B79] mx-auto mb-3 opacity-80" />
+            <h4 className="font-bold text-slate-800 dark:text-slate-100 text-base mb-1">
+              No tienes inspecciones registradas
+            </h4>
+            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4">
+              Cada supervisor registra y visualiza únicamente sus propias inspecciones. Comienza creando tu primera pauta en terreno.
+            </p>
+            <button
+              onClick={onNewInspection}
+              className="inline-flex items-center gap-2 bg-[#5E5365] hover:bg-[#4E4454] dark:bg-[#CC8B79] dark:hover:bg-[#b87665] text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-sm transition-all cursor-pointer active:scale-95"
             >
-              {/* Left side: Specialty badge + Info */}
-              <div className="flex items-center gap-3 sm:gap-4 min-w-0 pr-2">
-                <div
-                  className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 shadow-xs ${spec.className}`}
-                >
-                  {spec.code}
-                </div>
+              <Plus className="w-4 h-4" />
+              <span>Crear Nueva Inspección</span>
+            </button>
+          </div>
+        ) : (
+          inspections.map((insp) => {
+            const spec = getSpecialtyBadge(insp.type);
+            const statusMeta = getStatusPill(insp.status);
+            const totalChk = insp.checklist.length;
+            const doneChk = insp.checklist.filter((i) => i.completed).length;
+            const pct = totalChk > 0 ? Math.round((doneChk / totalChk) * 100) : 0;
 
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base leading-tight truncate">
-                    {insp.company}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                    {insp.faena} · {insp.location}
-                  </p>
-                </div>
-              </div>
-
-              {/* Right side: Status pill badge & slim progress bar */}
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <div
-                  className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${statusMeta.pillClass}`}
-                >
-                  {statusMeta.label}
-                </div>
-
-                <div className="w-24 sm:w-32 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            return (
+              <div
+                key={insp.id}
+                id={`inspection-card-${insp.id}`}
+                onClick={() => onSelectInspection(insp)}
+                className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm hover:border-[#5E5365] dark:hover:border-[#CC8B79] transition-colors cursor-pointer active:scale-99"
+              >
+                {/* Left side: Specialty badge + Info */}
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 pr-2">
                   <div
-                    className={`h-full rounded-full transition-all duration-300 ${statusMeta.barClass}`}
-                    style={{ width: `${Math.max(pct, 8)}%` }}
-                  />
+                    className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 shadow-xs ${spec.className}`}
+                  >
+                    {spec.code}
+                  </div>
+
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-sm sm:text-base leading-tight truncate">
+                      {insp.company}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                      {insp.faena} · {insp.location}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right side: Status pill badge & slim progress bar */}
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <div
+                    className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${statusMeta.pillClass}`}
+                  >
+                    {statusMeta.label}
+                  </div>
+
+                  <div className="w-24 sm:w-32 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${statusMeta.barClass}`}
+                      style={{ width: `${Math.max(pct, 8)}%` }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );
