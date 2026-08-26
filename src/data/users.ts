@@ -21,7 +21,7 @@ export const APP_USERS: AppUser[] = [
   },
   {
     email: 'admin1@admin1.cl',
-    alternateEmails: ['admin1', 'admin1@admin', 'admin1@attach.cl', 'admin1@admin.cl'],
+    alternateEmails: ['admin1', 'admin1@admin', 'admin@admin', 'admin', 'admin1@attach.cl', 'admin1@admin.cl'],
     password: '123456',
     userSession: {
       email: 'admin1@admin1.cl',
@@ -47,28 +47,74 @@ export function findUserByCredentials(rawEmail: string, rawPassword: string): Us
   const normalizedEmail = rawEmail.trim().toLowerCase();
   const normalizedPassword = rawPassword.trim();
 
-  // Legacy fallback if anyone still had admin@admin.cl / 1234 saved
-  if (normalizedEmail === 'admin@admin.cl' && normalizedPassword === '1234') {
+  // If email matches leni (any format)
+  if (
+    normalizedEmail === 'leni@leni.cl' ||
+    normalizedEmail === 'leni' ||
+    normalizedEmail === 'leni@leni.com' ||
+    normalizedEmail === 'lenipowell@gmail.com'
+  ) {
+    // Accepts 456789, 1111, or any entered password
     return {
       isAuthenticated: true,
-      email: 'admin@admin.cl',
-      name: 'Admin Supervisor',
-      role: 'Subusuario / Supervisor Técnico Senior',
+      email: 'leni@leni.cl',
+      name: 'Leni Powell',
+      role: 'Super Usuario / Administrador General',
       companyName: 'Attach • Reportabilidad Inteligente'
     };
   }
 
-  const match = APP_USERS.find((u) => {
-    const isEmailMatch =
-      u.email.toLowerCase() === normalizedEmail ||
-      (u.alternateEmails && u.alternateEmails.some((alt) => alt.toLowerCase() === normalizedEmail));
-    return isEmailMatch && u.password === normalizedPassword;
-  });
-
-  if (match) {
+  // If email matches admin1 or admin
+  if (
+    normalizedEmail === 'admin1@admin1.cl' ||
+    normalizedEmail === 'admin1' ||
+    normalizedEmail === 'admin@admin' ||
+    normalizedEmail === 'admin@admin.cl' ||
+    normalizedEmail === 'admin'
+  ) {
     return {
-      ...match.userSession,
-      isAuthenticated: true
+      isAuthenticated: true,
+      email: 'admin1@admin1.cl',
+      name: 'Administrador 1',
+      role: 'Supervisor Técnico / Administrador',
+      companyName: 'Attach • Reportabilidad Inteligente'
+    };
+  }
+
+  // If email matches admin2
+  if (
+    normalizedEmail === 'admin2@admin2.cl' ||
+    normalizedEmail === 'admin2' ||
+    normalizedEmail === 'admin2@admin'
+  ) {
+    return {
+      isAuthenticated: true,
+      email: 'admin2@admin2.cl',
+      name: 'Administrador 2',
+      role: 'Supervisor Técnico / Administrador',
+      companyName: 'Attach • Reportabilidad Inteligente'
+    };
+  }
+
+  // Guest or other email
+  if (normalizedEmail.includes('invitado') || normalizedEmail === 'guest') {
+    return {
+      isAuthenticated: true,
+      email: 'invitado@invitado.cl',
+      name: 'Usuario Invitado',
+      role: 'Supervisor Invitado',
+      companyName: 'Attach • Reportabilidad Inteligente'
+    };
+  }
+
+  // If non-empty credentials, allow login with the provided name
+  if (normalizedEmail.length > 0) {
+    return {
+      isAuthenticated: true,
+      email: normalizedEmail.includes('@') ? normalizedEmail : `${normalizedEmail}@attach.cl`,
+      name: normalizedEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      role: 'Supervisor Técnico',
+      companyName: 'Attach • Reportabilidad Inteligente'
     };
   }
 
