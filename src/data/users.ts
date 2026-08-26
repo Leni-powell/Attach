@@ -46,13 +46,24 @@ export const APP_USERS: AppUser[] = [
 export function isSuperUser(user?: UserSession | null): boolean {
   if (!user || !user.email) return false;
   const email = user.email.toLowerCase().trim();
-  const role = (user.role || '').toLowerCase();
-  return (
+  const role = (user.role || '').toLowerCase().trim();
+
+  // Strict check for Leni / Super Usuario accounts
+  const isLeni =
     email === 'leni@leni.cl' ||
     email === 'lenipowell@gmail.com' ||
-    email.startsWith('leni@') ||
-    role.includes('super')
-  );
+    email === 'leni' ||
+    email.startsWith('leni@');
+
+  // Exact super admin role match without matching regular "supervisor"
+  const isSuperRole =
+    role.includes('super usuario') ||
+    role.includes('super administrador') ||
+    role.includes('super_admin') ||
+    role.includes('superadmin') ||
+    role.includes('administrador general');
+
+  return isLeni || isSuperRole;
 }
 
 export function findUserByCredentials(rawEmail: string, rawPassword: string): UserSession | null {

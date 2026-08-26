@@ -29,20 +29,43 @@ export function getStoredInspections(): Inspection[] {
     }
     const parsed: Inspection[] = JSON.parse(raw);
     
-    // Auto-migrate legacy supervisor names if present
+    // Auto-migrate legacy supervisor names and ensure ownership tagging
     let hasChanges = false;
     const migrated = parsed.map(insp => {
-      if (insp.signature && /iaptidud/i.test(insp.signature.supervisorName)) {
+      let item = { ...insp };
+
+      // Tag initial demo data if missing ownership
+      if (item.id === 'insp-001' && !item.createdByEmail) {
         hasChanges = true;
-        return {
-          ...insp,
+        item.createdByEmail = 'leni@leni.cl';
+        item.createdByName = 'Leni Powell';
+        item.userId = 'usr-leni@leni.cl';
+        item.user_id = 'usr-leni@leni.cl';
+      } else if (item.id === 'insp-002' && !item.createdByEmail) {
+        hasChanges = true;
+        item.createdByEmail = 'admin1@admin1.cl';
+        item.createdByName = 'Administrador 1';
+        item.userId = 'usr-admin1@admin1.cl';
+        item.user_id = 'usr-admin1@admin1.cl';
+      } else if (item.id === 'insp-003' && !item.createdByEmail) {
+        hasChanges = true;
+        item.createdByEmail = 'admin2@admin2.cl';
+        item.createdByName = 'Administrador 2';
+        item.userId = 'usr-admin2@admin2.cl';
+        item.user_id = 'usr-admin2@admin2.cl';
+      }
+
+      if (item.signature && /iaptidud/i.test(item.signature.supervisorName)) {
+        hasChanges = true;
+        item = {
+          ...item,
           signature: {
-            ...insp.signature,
+            ...item.signature,
             supervisorName: 'Supervisor Attach'
           }
         };
       }
-      return insp;
+      return item;
     });
 
     if (hasChanges) {
