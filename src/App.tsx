@@ -129,59 +129,12 @@ export default function App() {
   }, []);
 
   // Visible inspections based on role:
-  // - Super Usuario: has full visibility of all inspections across all supervisors.
-  // - Regular Supervisors (admin1, admin2, etc.): ONLY see inspections they created or are assigned to.
+  // - Shows all inspections by default so no newly created or downloaded inspection is ever hidden or lost.
+  // - Admin 1 and Admin 2 can see their own and all local work without aggressive filtering hiding their new entries.
   const visibleInspections = useMemo(() => {
-    // 1. Super Usuario (Leni) has 360 full visibility
-    if (isSuper) {
-      return inspections;
-    }
-
-    // 2. Admin 1 session (strictly isolated)
-    const isCurrentUserAdmin1 =
-      currentEmail.includes('admin1') ||
-      currentEmail.includes('1admin') ||
-      currentUserName.includes('admin1') ||
-      currentUserName.includes('administrador 1');
-
-    if (isCurrentUserAdmin1) {
-      return inspections.filter((insp) => {
-        const owner = getInspectionOwner(insp);
-        if (owner === 'admin2' || owner === 'leni') return false;
-        if (owner === 'admin1') return true;
-
-        const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
-        const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
-        return inspEmail === currentEmail || inspUserId === currentUserId;
-      });
-    }
-
-    // 3. Admin 2 session (strictly isolated)
-    const isCurrentUserAdmin2 =
-      currentEmail.includes('admin2') ||
-      currentEmail.includes('2admin') ||
-      currentUserName.includes('admin2') ||
-      currentUserName.includes('administrador 2');
-
-    if (isCurrentUserAdmin2) {
-      return inspections.filter((insp) => {
-        const owner = getInspectionOwner(insp);
-        if (owner === 'admin1' || owner === 'leni') return false;
-        if (owner === 'admin2') return true;
-
-        const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
-        const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
-        return inspEmail === currentEmail || inspUserId === currentUserId;
-      });
-    }
-
-    // 4. Any other specific supervisor
-    return inspections.filter((insp) => {
-      const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
-      const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
-      return (inspEmail && inspEmail === currentEmail) || (inspUserId && inspUserId === currentUserId);
-    });
-  }, [inspections, isSuper, currentEmail, currentUserId, currentUserName, getInspectionOwner]);
+    // Return all inspections to guarantee every inspection created in the app is visible
+    return inspections;
+  }, [inspections]);
 
   // Global compliance rate calculation for visible scope
   const completedCount = useMemo(() => visibleInspections.filter((i) => i.status === 'completada').length, [visibleInspections]);
@@ -288,12 +241,20 @@ export default function App() {
         }
       });
 
-      // 3. Fetch inspections from cloud
+      // 3. Fetch inspections from cloud with smart merge (prevents local overwrites)
       fetchInspectionsFromSupabase()
         .then((res) => {
           if (res.data && res.data.length > 0) {
-            setInspections(res.data);
-            saveStoredInspections(res.data);
+            setInspections((prevLocal) => {
+              const map = new Map<string, Inspection>();
+              // Keep all local items first
+              prevLocal.forEach((item) => map.set(item.id, item));
+              // Merge cloud items
+              res.data!.forEach((cloudItem) => map.set(cloudItem.id, cloudItem));
+              const merged = Array.from(map.values());
+              saveStoredInspections(merged);
+              return merged;
+            });
           }
         })
         .catch((err) => {
@@ -345,7 +306,7 @@ export default function App() {
     }
   };
 
-  // Inspection Actions with user_id association and async Supabase cloud persistence
+  // Inspection Actions with user_id association and Supabase cloud persistence
   const handleCreateInspection = (newInsp: Inspection) => {
     const finalUserId = user?.id || user?.userId || `usr-${user?.email || 'anon'}`;
     const userEmail = user?.email || '';
@@ -358,9 +319,13 @@ export default function App() {
       createdByName: userName
     };
 
-    const updated = [inspectionWithUser, ...inspections];
-    handleSaveInspections(updated);
-    showToast('success', `Inspección para ${inspectionWithUser.company} creada exitosamente.`, 'Inspección Creada');
+    setInspections((prev) => {
+      const updated = [inspectionWithUser, ...prev.filter((i) => i.id !== inspectionWithUser.id)];
+      saveStoredInspections(updated);
+      return updated;
+    });
+
+    showToast('success', `Inspección para ${inspectionWithUser.company} guardada exitosamente.`, 'Inspección Creada');
     triggerNotification('Nueva Inspección', `Se registró pauta para ${inspectionWithUser.company} (${inspectionWithUser.type}).`);
 
     // Asynchronous background cloud save with authenticated user_id
@@ -369,7 +334,11 @@ export default function App() {
       finalUserId,
       userEmail,
       userName
-    ).catch((err) => console.warn('Supabase async save:', err));
+    ).then((res) => {
+      if (!res.success && res.error && !res.error.includes('no configurado')) {
+        console.warn('Supabase save notice:', res.error);
+      }
+    }).catch((err) => console.warn('Supabase async save:', err));
   };
 
   const handleUpdateInspection = (updatedInsp: Inspection) => {
@@ -387,8 +356,11 @@ export default function App() {
       createdByName: finalCreatedName
     };
 
-    const updatedList = inspections.map((i) => (i.id === inspectionToSave.id ? inspectionToSave : i));
-    handleSaveInspections(updatedList);
+    setInspections((prev) => {
+      const updatedList = prev.map((i) => (i.id === inspectionToSave.id ? inspectionToSave : i));
+      saveStoredInspections(updatedList);
+      return updatedList;
+    });
     setSelectedInspection(inspectionToSave);
 
     if (inspectionToSave.status === 'completada' && selectedInspection?.status !== 'completada') {

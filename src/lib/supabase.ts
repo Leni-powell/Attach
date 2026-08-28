@@ -335,13 +335,47 @@ export function onSupabaseAuthStateChange(
 // INSPECTIONS DATA OPERATIONS & USER ASSOCIATION
 // -------------------------------------------------------------
 
+let cachedActiveTableName: string | null = null;
+
 /**
- * Tests connection to Supabase instance and checks if the required 'inspections' table exists.
+ * Detects whether 'inspections' or 'inspecciones' table exists in the connected Supabase instance.
+ */
+export async function getActiveInspectionsTable(): Promise<string> {
+  if (cachedActiveTableName) return cachedActiveTableName;
+
+  const client = getSupabaseClient();
+  if (!client) return 'inspections';
+
+  try {
+    // Try English table first
+    const { error: engError } = await client.from('inspections').select('id').limit(1);
+    if (!engError) {
+      cachedActiveTableName = 'inspections';
+      return 'inspections';
+    }
+
+    // Try Spanish table
+    const { error: spaError } = await client.from('inspecciones').select('id').limit(1);
+    if (!spaError) {
+      cachedActiveTableName = 'inspecciones';
+      return 'inspecciones';
+    }
+  } catch (err) {
+    console.warn('Error detecting inspections table name:', err);
+  }
+
+  // Default to inspections
+  return 'inspections';
+}
+
+/**
+ * Tests connection to Supabase instance and checks if the required table exists.
  */
 export async function testSupabaseConnection(): Promise<{
   success: boolean;
   message: string;
   tableExists?: boolean;
+  activeTable?: string;
 }> {
   const client = getSupabaseClient();
   if (!client) {
@@ -352,31 +386,34 @@ export async function testSupabaseConnection(): Promise<{
   }
 
   try {
-    // Try a simple select to verify table and connectivity
-    const { data, error } = await client
-      .from('inspections')
-      .select('id')
-      .limit(1);
-
-    if (error) {
-      // 42P01 in PostgreSQL means relation does not exist
-      if (error.code === '42P01' || error.message?.includes('does not exist')) {
-        return {
-          success: true,
-          tableExists: false,
-          message: 'Conectado a Supabase exitosamente. Falta crear la tabla "inspections" en el SQL Editor.',
-        };
-      }
+    // Check 'inspections' table
+    const { error: err1 } = await client.from('inspections').select('id').limit(1);
+    if (!err1) {
+      cachedActiveTableName = 'inspections';
       return {
-        success: false,
-        message: `Error de conexión: ${error.message || 'Credenciales no válidas'}`,
+        success: true,
+        tableExists: true,
+        activeTable: 'inspections',
+        message: 'Conectado a Supabase: Tabla "inspections" activa y lista.',
+      };
+    }
+
+    // Check 'inspecciones' table
+    const { error: err2 } = await client.from('inspecciones').select('id').limit(1);
+    if (!err2) {
+      cachedActiveTableName = 'inspecciones';
+      return {
+        success: true,
+        tableExists: true,
+        activeTable: 'inspecciones',
+        message: 'Conectado a Supabase: Tabla "inspecciones" activa y lista.',
       };
     }
 
     return {
       success: true,
-      tableExists: true,
-      message: 'Conexión exitosa y tabla de inspecciones verificada.',
+      tableExists: false,
+      message: 'Conectado a Supabase exitosamente. Falta ejecutar el script SQL para crear la tabla de datos.',
     };
   } catch (err: any) {
     return {
@@ -387,7 +424,52 @@ export async function testSupabaseConnection(): Promise<{
 }
 
 /**
- * Fetch all inspections from Supabase, preserving user_id and creator information
+ * Maps a generic database row (whether from 'inspections' or 'inspecciones') to our TypeScript Inspection object
+ */
+function mapDatabaseRowToInspection(row: any): Inspection {
+  const payload = row.payload || row.metadata || {};
+  const uId = row.user_id || payload.userId || payload.user_id || row.inspector_rut || undefined;
+  const createdEmail = row.created_by_email || row.inspector_email || payload.createdByEmail || undefined;
+  const createdName = row.created_by_name || row.inspector_nombre || payload.createdByName || undefined;
+
+  const baseItem = row.payload ? { ...row.payload } : { ...row };
+
+  return {
+    id: row.id || baseItem.id,
+    userId: uId,
+    user_id: uId,
+    createdByEmail: createdEmail,
+    createdByName: createdName,
+    type: baseItem.type || row.type || row.tipo_inspeccion || 'Seguridad',
+    company: baseItem.company || row.company || row.empresa || '',
+    faena: baseItem.faena || row.faena || '',
+    location: baseItem.location || row.location || row.area || '',
+    date: baseItem.date || row.date || row.fecha || new Date().toISOString().split('T')[0],
+    status: (baseItem.status || row.status || (row.estado ? String(row.estado).toLowerCase() : 'pendiente')) as any,
+    checklist: Array.isArray(baseItem.checklist)
+      ? baseItem.checklist
+      : Array.isArray(row.checklist)
+      ? row.checklist
+      : [],
+    findings: Array.isArray(baseItem.findings)
+      ? baseItem.findings
+      : Array.isArray(row.findings)
+      ? row.findings
+      : [],
+    evidences: Array.isArray(baseItem.evidences)
+      ? baseItem.evidences
+      : Array.isArray(row.evidences)
+      ? row.evidences
+      : [],
+    signature: baseItem.signature || row.signature || (Array.isArray(row.firmas) && row.firmas[0] ? row.firmas[0] : null),
+    notes: baseItem.notes || row.notes || '',
+    createdAt: baseItem.createdAt || row.created_at || new Date().toISOString(),
+    updatedAt: baseItem.updatedAt || row.updated_at || new Date().toISOString(),
+  };
+}
+
+/**
+ * Fetch all inspections from Supabase, querying both table variants seamlessly
  */
 export async function fetchInspectionsFromSupabase(userIdFilter?: string): Promise<{
   data: Inspection[] | null;
@@ -399,64 +481,102 @@ export async function fetchInspectionsFromSupabase(userIdFilter?: string): Promi
   }
 
   try {
-    let query = client
-      .from('inspections')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // 1. Try 'inspections' table
+    let query1 = client.from('inspections').select('*').order('created_at', { ascending: false });
+    if (userIdFilter) query1 = query1.eq('user_id', userIdFilter);
 
-    if (userIdFilter) {
-      query = query.eq('user_id', userIdFilter);
+    const { data: data1, error: error1 } = await query1;
+    if (!error1 && data1) {
+      cachedActiveTableName = 'inspections';
+      return { data: data1.map(mapDatabaseRowToInspection), error: null };
     }
 
-    const { data, error } = await query;
-
-    if (error) {
-      return { data: null, error: error.message };
+    // 2. Try 'inspecciones' table
+    let query2 = client.from('inspecciones').select('*').order('created_at', { ascending: false });
+    const { data: data2, error: error2 } = await query2;
+    if (!error2 && data2) {
+      cachedActiveTableName = 'inspecciones';
+      return { data: data2.map(mapDatabaseRowToInspection), error: null };
     }
 
-    if (!data) {
-      return { data: [], error: null };
-    }
-
-    // Map database snake_case or raw json column to App Inspection interface
-    const mapped: Inspection[] = data.map((row: any) => {
-      const payload = row.payload || {};
-      const uId = row.user_id || payload.userId || payload.user_id || undefined;
-      const createdEmail = row.created_by_email || payload.createdByEmail || undefined;
-      const createdName = row.created_by_name || payload.createdByName || undefined;
-
-      const baseItem = row.payload ? { ...row.payload } : { ...row };
-
-      return {
-        id: row.id || baseItem.id,
-        userId: uId,
-        user_id: uId,
-        createdByEmail: createdEmail,
-        createdByName: createdName,
-        type: baseItem.type || row.type || 'Seguridad',
-        company: baseItem.company || row.company || '',
-        faena: baseItem.faena || row.faena || '',
-        location: baseItem.location || row.location || '',
-        date: baseItem.date || row.date || new Date().toISOString().split('T')[0],
-        status: baseItem.status || row.status || 'pendiente',
-        checklist: Array.isArray(baseItem.checklist) ? baseItem.checklist : (Array.isArray(row.checklist) ? row.checklist : []),
-        findings: Array.isArray(baseItem.findings) ? baseItem.findings : (Array.isArray(row.findings) ? row.findings : []),
-        evidences: Array.isArray(baseItem.evidences) ? baseItem.evidences : (Array.isArray(row.evidences) ? row.evidences : []),
-        signature: baseItem.signature || row.signature || null,
-        notes: baseItem.notes || row.notes || '',
-        createdAt: baseItem.createdAt || row.created_at || new Date().toISOString(),
-        updatedAt: baseItem.updatedAt || row.updated_at || new Date().toISOString(),
-      };
-    });
-
-    return { data: mapped, error: null };
+    return { data: null, error: error1?.message || error2?.message || 'No se encontró la tabla de inspecciones' };
   } catch (err: any) {
     return { data: null, error: err.message || 'Error al obtener inspecciones de Supabase' };
   }
 }
 
 /**
- * Upsert / Save a single inspection to Supabase with user_id association
+ * Format row for standard 'inspections' table
+ */
+function buildInspectionsDbRow(preparedInspection: Inspection, finalUserId: string | null, finalCreatedEmail: string | null, finalCreatedName: string | null) {
+  // Only use user_id if it is a valid UUID format, otherwise keep null in relational column and preserve in payload JSON
+  const isUuid = finalUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalUserId);
+
+  return {
+    id: preparedInspection.id,
+    user_id: isUuid ? finalUserId : null,
+    type: preparedInspection.type,
+    company: preparedInspection.company,
+    faena: preparedInspection.faena,
+    location: preparedInspection.location,
+    date: preparedInspection.date,
+    status: preparedInspection.status,
+    checklist: preparedInspection.checklist,
+    findings: preparedInspection.findings,
+    evidences: preparedInspection.evidences,
+    signature: preparedInspection.signature || null,
+    notes: preparedInspection.notes || '',
+    created_by_email: finalCreatedEmail,
+    created_by_name: finalCreatedName,
+    created_at: preparedInspection.createdAt,
+    updated_at: preparedInspection.updatedAt,
+    payload: {
+      ...preparedInspection,
+      userId: finalUserId || undefined,
+      user_id: finalUserId || undefined,
+      createdByEmail: finalCreatedEmail || undefined,
+      createdByName: finalCreatedName || undefined,
+    },
+  };
+}
+
+/**
+ * Format row for Spanish 'inspecciones' table
+ */
+function buildInspeccionesSpanishRow(preparedInspection: Inspection, finalUserId: string | null, finalCreatedEmail: string | null, finalCreatedName: string | null) {
+  return {
+    id: preparedInspection.id,
+    codigo: preparedInspection.id,
+    fecha: preparedInspection.date,
+    hora: new Date(preparedInspection.createdAt || Date.now()).toTimeString().split(' ')[0],
+    empresa: preparedInspection.company,
+    faena: preparedInspection.faena,
+    area: preparedInspection.location,
+    turno: 'Día',
+    supervisor: finalCreatedName || 'Supervisor',
+    administrador: 'Attach',
+    inspector_nombre: finalCreatedName || 'Supervisor',
+    inspector_rut: finalUserId || '',
+    inspector_email: finalCreatedEmail || '',
+    tipo_inspeccion: preparedInspection.type,
+    estado: (preparedInspection.status || 'completada').toUpperCase(),
+    total_hallazgos: preparedInspection.findings?.length || 0,
+    fotos_count: (preparedInspection.findings?.filter(f => !!f.photoUrl).length || 0) + (preparedInspection.evidences?.length || 0),
+    firmas: preparedInspection.signature ? [preparedInspection.signature] : [],
+    metadata: {
+      ...preparedInspection,
+      userId: finalUserId || undefined,
+      user_id: finalUserId || undefined,
+      createdByEmail: finalCreatedEmail || undefined,
+      createdByName: finalCreatedName || undefined,
+    },
+    created_at: preparedInspection.createdAt,
+    updated_at: preparedInspection.updatedAt,
+  };
+}
+
+/**
+ * Upsert / Save a single inspection to Supabase with automatic dual-table fallbacks
  */
 export async function saveInspectionToSupabase(
   inspection: Inspection,
@@ -485,45 +605,81 @@ export async function saveInspectionToSupabase(
       console.warn('Multimedia storage upload fallback:', migErr);
     }
 
-    const inspectionWithUser: Inspection = {
-      ...preparedInspection,
-      userId: finalUserId || undefined,
-      user_id: finalUserId || undefined,
-      createdByEmail: finalCreatedEmail || undefined,
-      createdByName: finalCreatedName || undefined,
-    };
+    const standardRow = buildInspectionsDbRow(preparedInspection, finalUserId, finalCreatedEmail, finalCreatedName);
+    const spanishRow = buildInspeccionesSpanishRow(preparedInspection, finalUserId, finalCreatedEmail, finalCreatedName);
 
-    const dbRow = {
-      id: preparedInspection.id,
-      user_id: finalUserId,
-      type: preparedInspection.type,
-      company: preparedInspection.company,
-      faena: preparedInspection.faena,
-      location: preparedInspection.location,
-      date: preparedInspection.date,
-      status: preparedInspection.status,
-      checklist: preparedInspection.checklist,
-      findings: preparedInspection.findings,
-      evidences: preparedInspection.evidences,
-      signature: preparedInspection.signature || null,
-      notes: preparedInspection.notes || '',
-      created_by_email: finalCreatedEmail,
-      created_by_name: finalCreatedName,
-      created_at: preparedInspection.createdAt,
-      updated_at: preparedInspection.updatedAt,
-      payload: inspectionWithUser, // Store clean JSON payload with storage CDN URLs
-    };
-
-    const { error } = await client
-      .from('inspections')
-      .upsert(dbRow, { onConflict: 'id' });
-
-    if (error) {
-      console.error('Error saving inspection to Supabase:', error);
-      return { success: false, error: error.message };
+    // 1. Try 'inspections' table
+    const { error: error1 } = await client.from('inspections').upsert(standardRow, { onConflict: 'id' });
+    if (!error1) {
+      cachedActiveTableName = 'inspections';
+      return { success: true, error: null };
     }
 
-    return { success: true, error: null };
+    // 1b. If 'inspections' failed due to missing columns (e.g. payload or signature), retry with core minimal columns
+    if (error1 && (error1.message.includes('payload') || error1.message.includes('column') || error1.message.includes('schema'))) {
+      const minimalRow = {
+        id: standardRow.id,
+        type: standardRow.type,
+        company: standardRow.company,
+        faena: standardRow.faena,
+        location: standardRow.location,
+        date: standardRow.date,
+        status: standardRow.status,
+        checklist: standardRow.checklist,
+        findings: standardRow.findings,
+        evidences: standardRow.evidences,
+        signature: standardRow.signature,
+        notes: standardRow.notes,
+        created_at: standardRow.created_at,
+        updated_at: standardRow.updated_at
+      };
+      const { error: minErr } = await client.from('inspections').upsert(minimalRow, { onConflict: 'id' });
+      if (!minErr) {
+        cachedActiveTableName = 'inspections';
+        return { success: true, error: null };
+      }
+    }
+
+    // 2. Try 'inspecciones' table (Spanish schema)
+    const { error: error2 } = await client.from('inspecciones').upsert(spanishRow, { onConflict: 'id' });
+    if (!error2) {
+      cachedActiveTableName = 'inspecciones';
+      return { success: true, error: null };
+    }
+
+    // 2b. Retry Spanish schema without extra metadata if column was not present
+    if (error2 && (error2.message.includes('metadata') || error2.message.includes('column'))) {
+      const minimalSpanishRow = {
+        id: spanishRow.id,
+        codigo: spanishRow.codigo,
+        fecha: spanishRow.fecha,
+        hora: spanishRow.hora,
+        empresa: spanishRow.empresa,
+        faena: spanishRow.faena,
+        area: spanishRow.area,
+        turno: spanishRow.turno,
+        supervisor: spanishRow.supervisor,
+        administrador: spanishRow.administrador,
+        inspector_nombre: spanishRow.inspector_nombre,
+        inspector_rut: spanishRow.inspector_rut,
+        inspector_email: spanishRow.inspector_email,
+        tipo_inspeccion: spanishRow.tipo_inspeccion,
+        estado: spanishRow.estado,
+        total_hallazgos: spanishRow.total_hallazgos,
+        fotos_count: spanishRow.fotos_count,
+        firmas: spanishRow.firmas,
+        created_at: spanishRow.created_at,
+        updated_at: spanishRow.updated_at
+      };
+      const { error: minSpaErr } = await client.from('inspecciones').upsert(minimalSpanishRow, { onConflict: 'id' });
+      if (!minSpaErr) {
+        cachedActiveTableName = 'inspecciones';
+        return { success: true, error: null };
+      }
+    }
+
+    console.error('Error saving inspection to Supabase (tried both tables):', { error1, error2 });
+    return { success: false, error: error1?.message || error2?.message || 'Error al guardar en Supabase' };
   } catch (err: any) {
     console.error('Exception saving to Supabase:', err);
     return { success: false, error: err.message || 'Error de conexión' };
@@ -531,7 +687,7 @@ export async function saveInspectionToSupabase(
 }
 
 /**
- * Batch sync multiple inspections to Supabase with user association and multimedia migration
+ * Batch sync multiple inspections to Supabase with dual-table support
  */
 export async function syncAllInspectionsToSupabase(
   inspections: Inspection[],
@@ -563,57 +719,42 @@ export async function syncAllInspectionsToSupabase(
       }
     }
 
-    const rows = preparedList.map((insp) => {
+    const standardRows = preparedList.map((insp) => {
       const finalUserId = insp.userId || insp.user_id || currentUserId || null;
       const finalCreatedEmail = insp.createdByEmail || currentUserEmail || null;
       const finalCreatedName = insp.createdByName || currentUserName || null;
-
-      const inspWithUser = {
-        ...insp,
-        userId: finalUserId || undefined,
-        user_id: finalUserId || undefined,
-        createdByEmail: finalCreatedEmail || undefined,
-        createdByName: finalCreatedName || undefined,
-      };
-
-      return {
-        id: insp.id,
-        user_id: finalUserId,
-        type: insp.type,
-        company: insp.company,
-        faena: insp.faena,
-        location: insp.location,
-        date: insp.date,
-        status: insp.status,
-        checklist: insp.checklist,
-        findings: insp.findings,
-        evidences: insp.evidences,
-        signature: insp.signature || null,
-        notes: insp.notes || '',
-        created_by_email: finalCreatedEmail,
-        created_by_name: finalCreatedName,
-        created_at: insp.createdAt,
-        updated_at: insp.updatedAt,
-        payload: inspWithUser,
-      };
+      return buildInspectionsDbRow(insp, finalUserId, finalCreatedEmail, finalCreatedName);
     });
 
-    const { error } = await client
-      .from('inspections')
-      .upsert(rows, { onConflict: 'id' });
+    const spanishRows = preparedList.map((insp) => {
+      const finalUserId = insp.userId || insp.user_id || currentUserId || null;
+      const finalCreatedEmail = insp.createdByEmail || currentUserEmail || null;
+      const finalCreatedName = insp.createdByName || currentUserName || null;
+      return buildInspeccionesSpanishRow(insp, finalUserId, finalCreatedEmail, finalCreatedName);
+    });
 
-    if (error) {
-      return { success: false, syncedCount: 0, error: error.message };
+    // 1. Try 'inspections' table
+    const { error: error1 } = await client.from('inspections').upsert(standardRows, { onConflict: 'id' });
+    if (!error1) {
+      cachedActiveTableName = 'inspections';
+      return { success: true, syncedCount: inspections.length, error: null };
     }
 
-    return { success: true, syncedCount: inspections.length, error: null };
+    // 2. Try 'inspecciones' table
+    const { error: error2 } = await client.from('inspecciones').upsert(spanishRows, { onConflict: 'id' });
+    if (!error2) {
+      cachedActiveTableName = 'inspecciones';
+      return { success: true, syncedCount: inspections.length, error: null };
+    }
+
+    return { success: false, syncedCount: 0, error: error1?.message || error2?.message || 'Error de sincronización' };
   } catch (err: any) {
     return { success: false, syncedCount: 0, error: err.message || 'Error al sincronizar datos' };
   }
 }
 
 /**
- * Delete inspection from Supabase
+ * Delete inspection from Supabase (tries both tables)
  */
 export async function deleteInspectionFromSupabase(id: string): Promise<{
   success: boolean;
@@ -625,10 +766,8 @@ export async function deleteInspectionFromSupabase(id: string): Promise<{
   }
 
   try {
-    const { error } = await client.from('inspections').delete().eq('id', id);
-    if (error) {
-      return { success: false, error: error.message };
-    }
+    await client.from('inspections').delete().eq('id', id);
+    await client.from('inspecciones').delete().eq('id', id);
     return { success: true, error: null };
   } catch (err: any) {
     return { success: false, error: err.message || 'Error al eliminar en Supabase' };
@@ -930,11 +1069,11 @@ export async function testSupabaseStorageConnection(): Promise<{
  * SQL creation script provided for users to run on Supabase SQL Editor
  */
 export const SUPABASE_SCHEMA_SQL = `-- =============================================================================
--- 1. TABLA PRINCIPAL DE INSPECCIONES (Vinculada a usuario autenticado de Supabase)
+-- 1. TABLA PRINCIPAL DE INSPECCIONES (Compatible con PWA Attach & Supabase Cloud)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.inspections (
   id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id UUID,
   type TEXT NOT NULL,
   company TEXT NOT NULL,
   faena TEXT NOT NULL,
@@ -953,12 +1092,22 @@ CREATE TABLE IF NOT EXISTS public.inspections (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- =============================================================================
+-- Si la tabla 'inspections' ya existía sin la columna 'payload', la agregamos:
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'inspections' AND column_name = 'payload'
+  ) THEN
+    ALTER TABLE public.inspections ADD COLUMN payload JSONB;
+  END IF;
+END $$;
+
 -- 2. HABILITAR ROW LEVEL SECURITY (RLS) EN TABLA INSPECCIONES
--- =============================================================================
 ALTER TABLE public.inspections ENABLE ROW LEVEL SECURITY;
 
--- 3. POLÍTICA DE ACCESO (Permitir lectura y escritura a clientes autenticados y clave anon)
+-- 3. POLÍTICA DE ACCESO (Permitir lectura y escritura a clientes anon y autenticados)
+DROP POLICY IF EXISTS "Permitir acceso total a inspecciones" ON public.inspections;
 CREATE POLICY "Permitir acceso total a inspecciones" 
 ON public.inspections 
 FOR ALL 
@@ -966,16 +1115,26 @@ TO anon, authenticated
 USING (true) 
 WITH CHECK (true);
 
--- 4. ÍNDICES PARA BÚSQUEDA, HISTORIAL Y RENDIMIENTO
+-- 4. ÍNDICES PARA BÚSQUEDA Y RENDIMIENTO
 CREATE INDEX IF NOT EXISTS idx_inspections_user_id ON public.inspections(user_id);
 CREATE INDEX IF NOT EXISTS idx_inspections_company ON public.inspections(company);
 CREATE INDEX IF NOT EXISTS idx_inspections_date ON public.inspections(date);
 CREATE INDEX IF NOT EXISTS idx_inspections_status ON public.inspections(status);
 
 -- =============================================================================
--- 5. CREACIÓN DEL BUCKET SUPABASE STORAGE: evidencias-multimedia
--- (Para Fotos de Hallazgos, Evidencias, Firmas y Reportes PDF)
+-- 5. CREACIÓN DE BUCKETS SUPABASE STORAGE PARA EVIDENCIAS MULTIMEDIA
 -- =============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'evidencia-multimedia',
+  'evidencia-multimedia',
+  true,
+  52428800, -- 50 MB
+  ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']
+)
+ON CONFLICT (id) DO UPDATE 
+SET public = true, file_size_limit = 52428800;
+
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'evidencias-multimedia',
@@ -985,32 +1144,27 @@ VALUES (
   ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']
 )
 ON CONFLICT (id) DO UPDATE 
-SET public = true, 
-    file_size_limit = 52428800;
+SET public = true, file_size_limit = 52428800;
 
--- 6. POLÍTICAS DE ACCESO PARA SUPABASE STORAGE (Lectura y Subida Pública / Autenticada)
-CREATE POLICY "Acceso de lectura publica evidencias multimedia"
-ON storage.objects
-FOR SELECT
-TO anon, authenticated
-USING (bucket_id = 'evidencias-multimedia');
+-- 6. POLÍTICAS DE ACCESO PARA SUPABASE STORAGE (Lectura y Subida Pública)
+DROP POLICY IF EXISTS "Acceso lectura storage multimedia" ON storage.objects;
+CREATE POLICY "Acceso lectura storage multimedia"
+ON storage.objects FOR SELECT TO anon, authenticated
+USING (bucket_id IN ('evidencia-multimedia', 'evidencias-multimedia'));
 
-CREATE POLICY "Permitir subida a evidencias multimedia"
-ON storage.objects
-FOR INSERT
-TO anon, authenticated
-WITH CHECK (bucket_id = 'evidencias-multimedia');
+DROP POLICY IF EXISTS "Permitir subida storage multimedia" ON storage.objects;
+CREATE POLICY "Permitir subida storage multimedia"
+ON storage.objects FOR INSERT TO anon, authenticated
+WITH CHECK (bucket_id IN ('evidencia-multimedia', 'evidencias-multimedia'));
 
-CREATE POLICY "Permitir actualizacion en evidencias multimedia"
-ON storage.objects
-FOR UPDATE
-TO anon, authenticated
-USING (bucket_id = 'evidencias-multimedia');
+DROP POLICY IF EXISTS "Permitir actualizacion storage multimedia" ON storage.objects;
+CREATE POLICY "Permitir actualizacion storage multimedia"
+ON storage.objects FOR UPDATE TO anon, authenticated
+USING (bucket_id IN ('evidencia-multimedia', 'evidencias-multimedia'));
 
-CREATE POLICY "Permitir eliminacion en evidencias multimedia"
-ON storage.objects
-FOR DELETE
-TO anon, authenticated
-USING (bucket_id = 'evidencias-multimedia');
+DROP POLICY IF EXISTS "Permitir eliminacion storage multimedia" ON storage.objects;
+CREATE POLICY "Permitir eliminacion storage multimedia"
+ON storage.objects FOR DELETE TO anon, authenticated
+USING (bucket_id IN ('evidencia-multimedia', 'evidencias-multimedia'));
 `;
 
