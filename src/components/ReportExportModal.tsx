@@ -544,6 +544,73 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                 )}
               </div>
 
+              {/* 4. Consolidated Photographic Records */}
+              {(() => {
+                const allPhotos: { insp: Inspection; title: string; photoUrl: string; severity?: string; subtitle?: string }[] = [];
+                inspectionsList.forEach((insp) => {
+                  insp.findings.forEach((f) => {
+                    if (f.photoUrl) {
+                      allPhotos.push({
+                        insp,
+                        title: `Hallazgo: ${f.title}`,
+                        photoUrl: f.photoUrl,
+                        severity: f.severity,
+                        subtitle: f.description
+                      });
+                    }
+                  });
+                  insp.evidences.forEach((ev, idx) => {
+                    if (ev.photoUrl) {
+                      allPhotos.push({
+                        insp,
+                        title: ev.caption || `Evidencia #${idx + 1}`,
+                        photoUrl: ev.photoUrl,
+                        subtitle: `Faena ${insp.faena}`
+                      });
+                    }
+                  });
+                });
+
+                if (allPhotos.length === 0) return null;
+
+                return (
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-wider text-[#5E5365] dark:text-slate-300 mb-2 border-b border-[#EFEBE8] pb-1">
+                      4. Registro Fotográfico Consolidado ({allPhotos.length})
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                      {allPhotos.map((p, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2 rounded-lg bg-[#FAF8F7] dark:bg-slate-900 border border-[#E5DFDC] dark:border-slate-800 space-y-1"
+                        >
+                          <img
+                            src={p.photoUrl}
+                            alt={p.title}
+                            className="w-full h-24 object-cover rounded-md border border-[#E5DFDC] dark:border-slate-700"
+                            loading="lazy"
+                          />
+                          <div className="text-[11px] font-bold text-[#38303B] dark:text-slate-200 truncate">
+                            {p.severity && (
+                              <span className="bg-[#F1DDE1] text-[#965868] dark:bg-rose-950/60 px-1.5 py-0.5 rounded text-[9px] mr-1">
+                                {p.severity}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-[#87778C] font-mono mr-1">[{p.insp.id}]</span>
+                            {p.title}
+                          </div>
+                          {p.subtitle && (
+                            <p className="text-[10px] text-[#87778C] dark:text-slate-400 line-clamp-1">
+                              {p.subtitle}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Signatures & Certification Section */}
               <div className="pt-2 border-t border-[#E5DFDC] dark:border-slate-800 flex items-end justify-between text-xs text-[#87778C]">
                 <div className="max-w-xs">
@@ -661,6 +728,80 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                     </div>
                   )}
                 </div>
+
+                {/* 3. Photographic Record & Evidences */}
+                {(() => {
+                  const photos: { type: string; title: string; subtitle?: string; photoUrl: string; severity?: string }[] = [];
+                  if (Array.isArray(currentIndividual.findings)) {
+                    currentIndividual.findings.forEach((f) => {
+                      if (f.photoUrl) {
+                        photos.push({
+                          type: 'Hallazgo',
+                          title: f.title,
+                          subtitle: f.description,
+                          photoUrl: f.photoUrl,
+                          severity: f.severity
+                        });
+                      }
+                    });
+                  }
+                  if (Array.isArray(currentIndividual.evidences)) {
+                    currentIndividual.evidences.forEach((ev, idx) => {
+                      if (ev.photoUrl) {
+                        photos.push({
+                          type: 'Evidencia',
+                          title: ev.caption || `Evidencia #${idx + 1}`,
+                          subtitle: `Registro en ${currentIndividual.faena}`,
+                          photoUrl: ev.photoUrl
+                        });
+                      }
+                    });
+                  }
+
+                  return (
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider text-[#5E5365] dark:text-slate-300 mb-2 border-b border-[#EFEBE8] pb-1">
+                        3. Registro Fotográfico y Evidencias en Terreno ({photos.length})
+                      </h4>
+                      {photos.length === 0 ? (
+                        <p className="text-xs text-[#87778C] italic">No se adjuntaron registros fotográficos en esta inspección.</p>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          {photos.map((p, idx) => (
+                            <div
+                              key={idx}
+                              className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-[#E5DFDC] dark:border-slate-800 space-y-1.5 shadow-xs"
+                            >
+                              <img
+                                src={p.photoUrl}
+                                alt={p.title}
+                                className="w-full h-36 object-cover rounded-lg border border-[#E5DFDC] dark:border-slate-800"
+                                loading="lazy"
+                              />
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                    p.type === 'Hallazgo'
+                                      ? 'bg-[#F1DDE1] text-[#965868] dark:bg-rose-950/60'
+                                      : 'bg-[#E3E5F3] text-[#5C788A] dark:bg-slate-800'
+                                  }`}
+                                >
+                                  {p.type === 'Hallazgo' ? p.severity?.toUpperCase() || 'HALLAZGO' : 'EVIDENCIA'}
+                                </span>
+                                <span className="font-bold text-[#38303B] dark:text-white truncate">{p.title}</span>
+                              </div>
+                              {p.subtitle && (
+                                <p className="text-[11px] text-[#6B5F70] dark:text-slate-400 line-clamp-2">
+                                  {p.subtitle}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Signature */}
                 <div className="pt-2 border-t border-[#E5DFDC] dark:border-slate-800 flex items-end justify-between text-xs">

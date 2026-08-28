@@ -48,6 +48,174 @@ export function triggerFileDownload(blob: Blob, fileName: string, fallbackDataUr
   }
 }
 
+/**
+ * Converts any image source (Base64 data URL, blob url, or remote Supabase storage url)
+ * to a standardized Base64 JPEG data URL for jsPDF.
+ */
+export async function toSafeImageBase64(
+  sourceUrl: string
+): Promise<{ dataUrl: string; format: 'JPEG' | 'PNG'; width: number; height: number } | null> {
+  if (!sourceUrl || typeof sourceUrl !== 'string') return null;
+
+  try {
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1200;
+          let w = img.naturalWidth || img.width || 800;
+          let h = img.naturalHeight || img.height || 600;
+
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+
+          canvas.width = Math.max(w, 1);
+          canvas.height = Math.max(h, 1);
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const jpegData = canvas.toDataURL('image/jpeg', 0.85);
+          resolve({
+            dataUrl: jpegData,
+            format: 'JPEG',
+            width: canvas.width,
+            height: canvas.height
+          });
+        } catch {
+          // If canvas security error on cross-origin, return raw dataUrl if it is base64
+          if (sourceUrl.startsWith('data:image/')) {
+            resolve({
+              dataUrl: sourceUrl,
+              format: sourceUrl.includes('png') ? 'PNG' : 'JPEG',
+              width: 800,
+              height: 600
+            });
+          } else {
+            resolve(null);
+          }
+        }
+      };
+
+      img.onerror = () => {
+        if (sourceUrl.startsWith('data:image/')) {
+          resolve({
+            dataUrl: sourceUrl,
+            format: sourceUrl.includes('png') ? 'PNG' : 'JPEG',
+            width: 800,
+            height: 600
+          });
+        } else {
+          resolve(null);
+        }
+      };
+
+      img.src = sourceUrl;
+    });
+  } catch (err) {
+    console.warn('Image conversion to base64 failed:', err);
+    return null;
+  }
+}
+
+export interface ProcessedPhotoItem {
+  id: string;
+  type: 'hallazgo' | 'evidencia';
+  title: string;
+  subtitle?: string;
+  severity?: string;
+  date?: string;
+  dataUrl: string;
+  format: 'JPEG' | 'PNG';
+  aspectRatio: number;
+}
+
+/**
+ * Extracts and preloads all photos from an inspection (findings with photos + evidence photos).
+ */
+export async function extractAndPreloadInspectionPhotos(
+  inspection: Inspection
+): Promise<ProcessedPhotoItem[]> {
+  const itemsToProcess: {
+    id: string;
+    type: 'hallazgo' | 'evidencia';
+    title: string;
+    subtitle?: string;
+    severity?: string;
+    date?: string;
+    url: string;
+  }[] = [];
+
+  // 1. Findings with photos
+  if (Array.isArray(inspection.findings)) {
+    inspection.findings.forEach((f, idx) => {
+      if (f.photoUrl) {
+        itemsToProcess.push({
+          id: f.id || `fnd-${idx}`,
+          type: 'hallazgo',
+          title: `Hallazgo: ${f.title}`,
+          subtitle: f.description || '',
+          severity: f.severity,
+          date: f.createdAt,
+          url: f.photoUrl
+        });
+      }
+    });
+  }
+
+  // 2. Evidence photos
+  if (Array.isArray(inspection.evidences)) {
+    inspection.evidences.forEach((ev, idx) => {
+      if (ev.photoUrl) {
+        itemsToProcess.push({
+          id: ev.id || `evi-${idx}`,
+          type: 'evidencia',
+          title: ev.caption || `Evidencia fotográfica #${idx + 1}`,
+          subtitle: `Registro en terreno (${inspection.faena})`,
+          date: ev.createdAt,
+          url: ev.photoUrl
+        });
+      }
+    });
+  }
+
+  const results: ProcessedPhotoItem[] = [];
+
+  for (const item of itemsToProcess) {
+    const converted = await toSafeImageBase64(item.url);
+    if (converted && converted.dataUrl) {
+      results.push({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        subtitle: item.subtitle,
+        severity: item.severity,
+        date: item.date,
+        dataUrl: converted.dataUrl,
+        format: converted.format,
+        aspectRatio: converted.width / Math.max(converted.height, 1)
+      });
+    }
+  }
+
+  return results;
+}
+
 // ---------------------------------------------------------------------------
 // 1. CONSOLIDATED MULTI-CATEGORY PDF GENERATION (Seguridad, Calidad, Ambiental, Operacional)
 // ---------------------------------------------------------------------------
@@ -304,6 +472,7 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
     title: string;
     severity: string;
     description: string;
+    photoUrl?: string;
   }[] = [];
 
   inspections.forEach((insp) => {
@@ -314,7 +483,8 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
         company: insp.company,
         title: f.title,
         severity: f.severity,
-        description: f.description || 'Sin detalles'
+        description: f.description || 'Sin detalles',
+        photoUrl: f.photoUrl
       });
     });
   });
@@ -379,28 +549,116 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
     currentY = (doc as any).lastAutoTable.finalY + 8;
   }
 
-  // Institutional Signatures and Certification Section
-  if (currentY > pageHeight - 45) {
-    doc.addPage();
-    currentY = 20;
+  return doc;
+}
+
+/**
+ * Triggers the automatic generation and download of the Consolidated PDF.
+ */
+export async function generateConsolidatedInspectionPdf(
+  inspections: Inspection[]
+): Promise<{ blob: Blob; dataUrl: string; fileName: string; success: boolean }> {
+  // Preload photos for all inspections
+  const allPreloadedPhotos: { inspection: Inspection; photos: ProcessedPhotoItem[] }[] = [];
+  for (const insp of inspections) {
+    const photos = await extractAndPreloadInspectionPhotos(insp);
+    if (photos.length > 0) {
+      allPreloadedPhotos.push({ inspection: insp, photos });
+    }
   }
 
-  currentY += 4;
+  const doc = buildConsolidatedPdfDocument(inspections);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Add Consolidated Photo Gallery Section if photos exist
+  const totalPhotos = allPreloadedPhotos.reduce((acc, curr) => acc + curr.photos.length, 0);
+  if (totalPhotos > 0) {
+    doc.addPage();
+    let currentY = 20;
+
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(94, 83, 101);
+    doc.text(`REGISTRO FOTOGRÁFICO CONSOLIDADO DE EVIDENCIAS EN TERRENO (${totalPhotos})`, 14, currentY);
+    currentY += 6;
+
+    const colWidth = 87;
+    const cardHeight = 62;
+    const imgHeight = 44;
+    const imgWidth = 81;
+    const gapX = 8;
+    const leftMargin = 14;
+
+    const flatPhotos: { insp: Inspection; photo: ProcessedPhotoItem }[] = [];
+    allPreloadedPhotos.forEach((item) => {
+      item.photos.forEach((p) => {
+        flatPhotos.push({ insp: item.inspection, photo: p });
+      });
+    });
+
+    for (let i = 0; i < flatPhotos.length; i += 2) {
+      if (currentY + cardHeight > pageHeight - 30) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      const item1 = flatPhotos[i];
+      renderPdfPhotoCard(
+        doc,
+        {
+          ...item1.photo,
+          title: `[${item1.insp.id}] ${item1.photo.title}`
+        },
+        leftMargin,
+        currentY,
+        colWidth,
+        cardHeight,
+        imgWidth,
+        imgHeight
+      );
+
+      if (i + 1 < flatPhotos.length) {
+        const item2 = flatPhotos[i + 1];
+        renderPdfPhotoCard(
+          doc,
+          {
+            ...item2.photo,
+            title: `[${item2.insp.id}] ${item2.photo.title}`
+          },
+          leftMargin + colWidth + gapX,
+          currentY,
+          colWidth,
+          cardHeight,
+          imgWidth,
+          imgHeight
+        );
+      }
+
+      currentY += cardHeight + 6;
+    }
+  }
+
+  // Institutional Signatures Section
+  let currentY = doc.internal.pageSize.getHeight() - 40;
+  if (currentY < 30) {
+    doc.addPage();
+    currentY = 30;
+  }
+
   doc.setDrawColor(229, 223, 220);
   doc.line(14, currentY, pageWidth - 14, currentY);
-  currentY += 7;
+  currentY += 6;
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(135, 119, 140);
-  doc.text('Documento Consolidado Oficial generado en la plataforma móvil Attach • Reportabilidad inteligente.', 14, currentY);
+  doc.text('Documento Consolidado Oficial emitido en la plataforma móvil Attach • Reportabilidad inteligente.', 14, currentY);
   doc.text('Trazabilidad técnica certificada conforme a normas de Seguridad, Calidad, Medio Ambiente y Operación.', 14, currentY + 4);
 
-  // Supervisor & Audit Signature Box
   const sigX = pageWidth - 65;
   const sigY = currentY - 2;
 
-  // Check if any inspection has a signature image to use as reference
   const signedInsp = inspections.find((i) => i.signature?.dataUrl);
   if (signedInsp?.signature?.dataUrl) {
     try {
@@ -423,16 +681,6 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
     { align: 'center' }
   );
 
-  return doc;
-}
-
-/**
- * Triggers the automatic generation and download of the Consolidated PDF.
- */
-export async function generateConsolidatedInspectionPdf(
-  inspections: Inspection[]
-): Promise<{ blob: Blob; dataUrl: string; fileName: string; success: boolean }> {
-  const doc = buildConsolidatedPdfDocument(inspections);
   const pdfBlob = doc.output('blob');
   const dataUrl = doc.output('datauristring');
   const dateStr = new Date().toISOString().split('T')[0];
@@ -449,11 +697,82 @@ export async function generateConsolidatedInspectionPdf(
   return { blob: pdfBlob, dataUrl, fileName, success: downloadTriggered };
 }
 
+/**
+ * Helper to render an individual photo card in jsPDF.
+ */
+function renderPdfPhotoCard(
+  doc: jsPDF,
+  photo: ProcessedPhotoItem,
+  x: number,
+  y: number,
+  cardWidth: number,
+  cardHeight: number,
+  imgBoxWidth: number,
+  imgBoxHeight: number
+): void {
+  // Draw card container with clean neutral background and border
+  doc.setFillColor(250, 248, 247);
+  doc.setDrawColor(229, 223, 220);
+  doc.roundedRect(x, y, cardWidth, cardHeight, 2, 2, 'FD');
+
+  const imgX = x + (cardWidth - imgBoxWidth) / 2;
+  const imgY = y + 2.5;
+
+  try {
+    doc.addImage(photo.dataUrl, photo.format, imgX, imgY, imgBoxWidth, imgBoxHeight, undefined, 'FAST');
+  } catch (err) {
+    console.warn('Could not draw photo in PDF:', err);
+    doc.setFillColor(235, 230, 228);
+    doc.rect(imgX, imgY, imgBoxWidth, imgBoxHeight, 'F');
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(135, 119, 140);
+    doc.text('Imagen fotográfica', imgX + imgBoxWidth / 2, imgY + imgBoxHeight / 2, { align: 'center' });
+  }
+
+  // Draw photo label / title below image
+  const textY = imgY + imgBoxHeight + 3.8;
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+
+  if (photo.type === 'hallazgo') {
+    doc.setTextColor(150, 88, 104);
+    const badgeText = photo.severity ? `[${photo.severity.toUpperCase()}] ` : '[HALLAZGO] ';
+    doc.text(badgeText, x + 3, textY);
+    const badgeWidth = doc.getTextWidth(badgeText);
+    doc.setTextColor(56, 48, 59);
+    const titleSnippet = doc.splitTextToSize(photo.title.replace(/^Hallazgo:\s*/i, ''), cardWidth - badgeWidth - 6);
+    doc.text(titleSnippet[0] || '', x + 3 + badgeWidth, textY);
+  } else {
+    doc.setTextColor(92, 120, 138);
+    doc.text('[EVIDENCIA] ', x + 3, textY);
+    const badgeWidth = doc.getTextWidth('[EVIDENCIA] ');
+    doc.setTextColor(56, 48, 59);
+    const titleSnippet = doc.splitTextToSize(photo.title, cardWidth - badgeWidth - 6);
+    doc.text(titleSnippet[0] || '', x + 3 + badgeWidth, textY);
+  }
+
+  // Subtitle / Date (second line)
+  if (photo.subtitle || photo.date) {
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(135, 119, 140);
+    const dateFormatted = photo.date ? new Date(photo.date).toLocaleDateString('es-CL') : '';
+    const descText = photo.subtitle ? `${photo.subtitle} ${dateFormatted ? `(${dateFormatted})` : ''}` : dateFormatted;
+    const subSnippet = doc.splitTextToSize(descText, cardWidth - 6);
+    doc.text(subSnippet[0] || '', x + 3, textY + 3.5);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 2. SINGLE INSPECTION PDF GENERATION (Ficha Técnica Individual)
 // ---------------------------------------------------------------------------
 
-export function buildSingleInspectionPdfDocument(inspection: Inspection): jsPDF {
+export function buildSingleInspectionPdfDocument(
+  inspection: Inspection,
+  preloadedPhotos: ProcessedPhotoItem[] = [],
+  preloadedSig?: { dataUrl: string; format: 'JPEG' | 'PNG' } | null
+): jsPDF {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -624,8 +943,65 @@ export function buildSingleInspectionPdfDocument(inspection: Inspection): jsPDF 
     currentY = (doc as any).lastAutoTable.finalY + 8;
   }
 
+  // -------------------------------------------------------------------------
+  // 3. REGISTRO FOTOGRÁFICO Y EVIDENCIAS EN TERRENO
+  // -------------------------------------------------------------------------
+  if (preloadedPhotos && preloadedPhotos.length > 0) {
+    if (currentY > pageHeight - 75) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(94, 83, 101);
+    doc.text(`3. REGISTRO FOTOGRÁFICO Y EVIDENCIAS EN TERRENO (${preloadedPhotos.length})`, 14, currentY);
+    currentY += 6;
+
+    const colWidth = 87;
+    const cardHeight = 62;
+    const imgHeight = 44;
+    const imgWidth = 81;
+    const gapX = 8;
+    const leftMargin = 14;
+
+    for (let i = 0; i < preloadedPhotos.length; i += 2) {
+      if (currentY + cardHeight > pageHeight - 35) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      // Column 1
+      const photo1 = preloadedPhotos[i];
+      renderPdfPhotoCard(doc, photo1, leftMargin, currentY, colWidth, cardHeight, imgWidth, imgHeight);
+
+      // Column 2 (if exists)
+      if (i + 1 < preloadedPhotos.length) {
+        const photo2 = preloadedPhotos[i + 1];
+        renderPdfPhotoCard(doc, photo2, leftMargin + colWidth + gapX, currentY, colWidth, cardHeight, imgWidth, imgHeight);
+      }
+
+      currentY += cardHeight + 6;
+    }
+  } else {
+    if (currentY > pageHeight - 45) {
+      doc.addPage();
+      currentY = 20;
+    }
+    doc.setFontSize(10.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(94, 83, 101);
+    doc.text('3. REGISTRO FOTOGRÁFICO Y EVIDENCIAS EN TERRENO (0)', 14, currentY);
+    currentY += 4;
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(135, 119, 140);
+    doc.text('No se adjuntaron registros fotográficos en esta inspección.', 14, currentY + 3);
+    currentY += 10;
+  }
+
   // Signatures and Validation Section
-  if (currentY > pageHeight - 50) {
+  if (currentY > pageHeight - 45) {
     doc.addPage();
     currentY = 20;
   }
@@ -645,9 +1021,10 @@ export function buildSingleInspectionPdfDocument(inspection: Inspection): jsPDF 
   const sigX = pageWidth - 65;
   const sigY = currentY - 2;
 
-  if (inspection.signature?.dataUrl) {
+  const sigSource = preloadedSig?.dataUrl || inspection.signature?.dataUrl;
+  if (sigSource) {
     try {
-      doc.addImage(inspection.signature.dataUrl, 'PNG', sigX, sigY, 45, 15);
+      doc.addImage(sigSource, 'PNG', sigX, sigY, 45, 15);
     } catch (e) {
       console.warn('Could not render signature on PDF', e);
     }
@@ -672,7 +1049,18 @@ export function buildSingleInspectionPdfDocument(inspection: Inspection): jsPDF 
 export async function generateInspectionPdf(
   inspection: Inspection
 ): Promise<{ blob: Blob; dataUrl: string; fileName: string; success: boolean }> {
-  const doc = buildSingleInspectionPdfDocument(inspection);
+  // Preload and convert all photos (findings and evidence) to ensure they are embedded in the PDF
+  const preloadedPhotos = await extractAndPreloadInspectionPhotos(inspection);
+  
+  let preloadedSig: { dataUrl: string; format: 'JPEG' | 'PNG' } | null = null;
+  if (inspection.signature?.dataUrl) {
+    const convertedSig = await toSafeImageBase64(inspection.signature.dataUrl);
+    if (convertedSig) {
+      preloadedSig = { dataUrl: convertedSig.dataUrl, format: convertedSig.format };
+    }
+  }
+
+  const doc = buildSingleInspectionPdfDocument(inspection, preloadedPhotos, preloadedSig);
   const pdfBlob = doc.output('blob');
   const dataUrl = doc.output('datauristring');
   const safeCompany = inspection.company.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -791,7 +1179,7 @@ export function generateConsolidatedHtmlReport(inspections: Inspection[]): strin
       const list = inspections.filter((i) => i.type === cat.key);
       const rows =
         list.length === 0
-          ? `<tr><td colspan="6" style="text-align:center; color:#87778c; font-style:italic;">No hay auditorías registradas en ${cat.label}.</td></tr>`
+          ? `<tr><td colspan="7" style="text-align:center; color:#87778c; font-style:italic;">No hay auditorías registradas en ${cat.label}.</td></tr>`
           : list
               .map((insp) => {
                 const doneChecks = insp.checklist.filter((c) => c.completed).length;
@@ -843,6 +1231,54 @@ export function generateConsolidatedHtmlReport(inspections: Inspection[]): strin
     `;
     })
     .join('');
+
+  // Collect photos from all inspections
+  const allPhotos: { insp: Inspection; title: string; photoUrl: string; severity?: string; subtitle?: string }[] = [];
+  inspections.forEach((insp) => {
+    insp.findings.forEach((f) => {
+      if (f.photoUrl) {
+        allPhotos.push({
+          insp,
+          title: `Hallazgo: ${f.title}`,
+          photoUrl: f.photoUrl,
+          severity: f.severity,
+          subtitle: f.description
+        });
+      }
+    });
+    insp.evidences.forEach((ev, idx) => {
+      if (ev.photoUrl) {
+        allPhotos.push({
+          insp,
+          title: ev.caption || `Evidencia #${idx + 1}`,
+          photoUrl: ev.photoUrl,
+          subtitle: `Faena ${insp.faena}`
+        });
+      }
+    });
+  });
+
+  const photoGalleryHtml =
+    allPhotos.length === 0
+      ? '<p style="font-style:italic; color:#87778c;">No se registran fotos en las auditorías evaluadas.</p>'
+      : `
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px;">
+        ${allPhotos
+          .map(
+            (p) => `
+          <div style="border: 1px solid #e5dfdc; border-radius: 6px; padding: 6px; background: #FAF8F7; page-break-inside: avoid;">
+            <img src="${p.photoUrl}" style="width: 100%; height: 130px; object-fit: cover; border-radius: 4px; display: block;" alt="${p.title}" />
+            <div style="font-size: 10px; font-weight: bold; margin-top: 5px; color: #38303b;">
+              ${p.severity ? `<span style="background: #F1DDE1; color: #965868; padding: 1px 4px; border-radius: 3px; font-size: 9px; margin-right: 4px;">${p.severity}</span>` : ''}
+              <span style="color: #87778c; font-family: monospace;">[${p.insp.id}]</span> ${p.title}
+            </div>
+            ${p.subtitle ? `<div style="font-size: 9px; color: #6b5f70; margin-top: 2px;">${p.subtitle}</div>` : ''}
+          </div>
+        `
+          )
+          .join('')}
+      </div>
+    `;
 
   return `
     <!DOCTYPE html>
@@ -902,6 +1338,13 @@ export function generateConsolidatedHtmlReport(inspections: Inspection[]): strin
 
       ${categorySectionsHtml}
 
+      <div style="margin-top: 24px;">
+        <h3 style="color: #5E5365; border-bottom: 2px solid #5E5365; padding-bottom: 4px; font-size: 13px; text-transform: uppercase;">
+          Registro Fotográfico Consolidado de Evidencias en Terreno (${allPhotos.length})
+        </h3>
+        ${photoGalleryHtml}
+      </div>
+
       <div class="signature-section">
         <div style="font-size: 10px; color: #87778c; max-width: 320px;">
           <p><b>Validación Institucional y Trazabilidad</b></p>
@@ -951,6 +1394,60 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
       `
           )
           .join('');
+
+  // Collect photos from findings and evidences
+  const photoItems: { title: string; subtitle?: string; photoUrl: string; severity?: string; type: string }[] = [];
+  if (Array.isArray(inspection.findings)) {
+    inspection.findings.forEach((f) => {
+      if (f.photoUrl) {
+        photoItems.push({
+          type: 'Hallazgo',
+          title: f.title,
+          subtitle: f.description,
+          photoUrl: f.photoUrl,
+          severity: f.severity
+        });
+      }
+    });
+  }
+  if (Array.isArray(inspection.evidences)) {
+    inspection.evidences.forEach((ev, idx) => {
+      if (ev.photoUrl) {
+        photoItems.push({
+          type: 'Evidencia',
+          title: ev.caption || `Evidencia fotográfica #${idx + 1}`,
+          subtitle: `Registro en ${inspection.faena}`,
+          photoUrl: ev.photoUrl
+        });
+      }
+    });
+  }
+
+  const photosHtml =
+    photoItems.length === 0
+      ? '<p style="color: #87778c; font-style: italic; padding: 6px 0;">No se adjuntaron registros fotográficos en esta inspección.</p>'
+      : `
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 8px; margin-bottom: 16px;">
+        ${photoItems
+          .map(
+            (p) => `
+          <div style="border: 1px solid #e5dfdc; border-radius: 8px; background: #FAF8F7; padding: 8px; page-break-inside: avoid;">
+            <img src="${p.photoUrl}" style="width: 100%; height: 160px; object-fit: cover; border-radius: 6px; display: block;" alt="${p.title}" />
+            <div style="font-size: 11px; font-weight: bold; margin-top: 6px; color: #38303b;">
+              ${
+                p.type === 'Hallazgo'
+                  ? `<span style="background: #F1DDE1; color: #965868; padding: 1px 5px; border-radius: 4px; font-size: 9px; margin-right: 4px; font-weight: bold;">${p.severity?.toUpperCase() || 'HALLAZGO'}</span>`
+                  : `<span style="background: #E3E5F3; color: #5C788A; padding: 1px 5px; border-radius: 4px; font-size: 9px; margin-right: 4px; font-weight: bold;">EVIDENCIA</span>`
+              }
+              ${p.title}
+            </div>
+            ${p.subtitle ? `<div style="font-size: 10px; color: #6b5f70; margin-top: 3px;">${p.subtitle}</div>` : ''}
+          </div>
+        `
+          )
+          .join('')}
+      </div>
+    `;
 
   return `
     <!DOCTYPE html>
@@ -1048,6 +1545,9 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
           ${findingsRows}
         </tbody>
       </table>
+
+      <h3>3. Registro Fotográfico y Evidencias en Terreno (${photoItems.length})</h3>
+      ${photosHtml}
 
       <div class="signature-section">
         <div style="font-size: 10px; color: #87778c; max-width: 320px;">
