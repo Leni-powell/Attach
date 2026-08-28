@@ -129,12 +129,76 @@ export default function App() {
   }, []);
 
   // Visible inspections based on role:
-  // - Shows all inspections by default so no newly created or downloaded inspection is ever hidden or lost.
-  // - Admin 1 and Admin 2 can see their own and all local work without aggressive filtering hiding their new entries.
+  // - Super Usuario (Leni): has 360 full visibility of ALL inspections across all supervisors.
+  // - Regular Supervisors (Admin 1, Admin 2, etc.): ONLY see inspections they created, signed, or are assigned to.
   const visibleInspections = useMemo(() => {
-    // Return all inspections to guarantee every inspection created in the app is visible
-    return inspections;
-  }, [inspections]);
+    // 1. Super Usuario (Leni) has 360 full visibility
+    if (isSuper) {
+      return inspections;
+    }
+
+    // 2. Admin 1 session (strictly isolated to admin1's inspections)
+    const isCurrentUserAdmin1 =
+      currentEmail.includes('admin1') ||
+      currentEmail.includes('1admin') ||
+      currentUserName.includes('admin1') ||
+      currentUserName.includes('administrador 1');
+
+    if (isCurrentUserAdmin1) {
+      return inspections.filter((insp) => {
+        const owner = getInspectionOwner(insp);
+        if (owner === 'admin1') return true;
+        if (owner === 'admin2' || owner === 'leni') return false;
+
+        const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
+        const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+        const inspName = (insp.createdByName || '').toLowerCase().trim();
+        return (
+          inspEmail === currentEmail ||
+          inspUserId === currentUserId ||
+          inspName.includes('admin1') ||
+          inspName.includes('administrador 1')
+        );
+      });
+    }
+
+    // 3. Admin 2 session (strictly isolated to admin2's inspections)
+    const isCurrentUserAdmin2 =
+      currentEmail.includes('admin2') ||
+      currentEmail.includes('2admin') ||
+      currentUserName.includes('admin2') ||
+      currentUserName.includes('administrador 2');
+
+    if (isCurrentUserAdmin2) {
+      return inspections.filter((insp) => {
+        const owner = getInspectionOwner(insp);
+        if (owner === 'admin2') return true;
+        if (owner === 'admin1' || owner === 'leni') return false;
+
+        const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
+        const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+        const inspName = (insp.createdByName || '').toLowerCase().trim();
+        return (
+          inspEmail === currentEmail ||
+          inspUserId === currentUserId ||
+          inspName.includes('admin2') ||
+          inspName.includes('administrador 2')
+        );
+      });
+    }
+
+    // 4. Any other specific supervisor / user account
+    return inspections.filter((insp) => {
+      const inspEmail = (insp.createdByEmail || '').toLowerCase().trim();
+      const inspUserId = (insp.userId || insp.user_id || '').toLowerCase().trim();
+      const inspName = (insp.createdByName || '').toLowerCase().trim();
+      return (
+        inspEmail === currentEmail ||
+        inspUserId === currentUserId ||
+        (inspName && inspName === currentUserName)
+      );
+    });
+  }, [inspections, isSuper, currentEmail, currentUserId, currentUserName, getInspectionOwner]);
 
   // Global compliance rate calculation for visible scope
   const completedCount = useMemo(() => visibleInspections.filter((i) => i.status === 'completada').length, [visibleInspections]);
