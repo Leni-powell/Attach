@@ -12,7 +12,11 @@ import {
   Leaf,
   Cog,
   Layers,
-  FileText
+  FileText,
+  CloudCheck,
+  CloudUpload,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Inspection, InspectionType } from '../types';
 import { AttachEmblem } from './AttachLogo';
@@ -22,6 +26,7 @@ import {
   openReportInNewTab,
   printInspectionReport
 } from '../utils/pdfExport';
+import { uploadPdfReportToStorage, getSupabaseConfig } from '../lib/supabase';
 
 interface ReportExportModalProps {
   inspection: Inspection | null;
@@ -41,8 +46,10 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
     fileName: string;
     blobUrl: string;
     dataUrl: string;
+    storageUrl?: string | null;
   } | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
   
   // Selection mode: default to 'consolidated' or inspection if single was explicitly clicked
   const [selectedMode, setSelectedMode] = useState<'consolidated' | string>('consolidated');
@@ -138,7 +145,7 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
     }
   ];
 
-  // Unified automatic PDF generator and downloader
+  // Unified automatic PDF generator and downloader with Supabase Storage integration
   const handleGenerateAndDownloadPdf = async () => {
     try {
       setIsGeneratingPdf(true);
@@ -154,19 +161,43 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
       }
 
       const blobUrl = window.URL.createObjectURL(result.blob);
+      let cloudUrl: string | null = null;
+
+      // Automatically store PDF in Supabase Storage (evidencias-multimedia/reportes-pdf/...)
+      const { isConfigured } = getSupabaseConfig();
+      if (isConfigured) {
+        setStatusMessage('Almacenando copia en Supabase Storage (evidencias-multimedia)...');
+        try {
+          const uploadRes = await uploadPdfReportToStorage(result.fileName, result.blob);
+          if (uploadRes.publicUrl) {
+            cloudUrl = uploadRes.publicUrl;
+          }
+        } catch (uploadErr) {
+          console.warn('PDF cloud upload fallback:', uploadErr);
+        }
+      }
 
       setDownloadInfo({
         fileName: result.fileName,
         blobUrl,
-        dataUrl: result.dataUrl
+        dataUrl: result.dataUrl,
+        storageUrl: cloudUrl
       });
 
-      setStatusMessage('¡Descarga iniciada! Si tu navegador la bloqueó, usa el botón de guardar.');
+      setStatusMessage(cloudUrl ? '¡PDF generado y guardado en Supabase Storage exitosamente!' : '¡Descarga iniciada! Si tu navegador la bloqueó, usa el botón de guardar.');
     } catch (err) {
       console.error('Error generating PDF:', err);
       setStatusMessage('Error generando PDF. Puedes abrirlo en una nueva pestaña.');
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleCopyCloudLink = () => {
+    if (downloadInfo?.storageUrl) {
+      navigator.clipboard.writeText(downloadInfo.storageUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
     }
   };
 
@@ -265,31 +296,70 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
 
         {/* Status Notification Banner if download ready */}
         {downloadInfo && (
-          <div className="mt-3 p-3 rounded-xl bg-[#FAF5F0] dark:bg-[#2B231F] border border-[#ECCFBE] dark:border-[#54433B] flex flex-wrap items-center justify-between gap-2 text-xs text-[#6B5F70] dark:text-[#E5BEA6] shrink-0">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#CC8B79] shrink-0" />
-              <span>
-                <strong>PDF Listo:</strong> {downloadInfo.fileName}
-              </span>
+          <div className="mt-3 p-3.5 rounded-xl bg-[#FAF5F0] dark:bg-[#2B231F] border border-[#ECCFBE] dark:border-[#54433B] space-y-2 text-xs text-[#6B5F70] dark:text-[#E5BEA6] shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#CC8B79] shrink-0" />
+                <span>
+                  <strong>PDF Listo:</strong> {downloadInfo.fileName}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={downloadInfo.blobUrl}
+                  download={downloadInfo.fileName}
+                  className="px-3 py-1.5 rounded-lg bg-[#CC8B79] hover:bg-[#B87A69] text-white font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Descargar Local</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleOpenInNewTab}
+                  className="px-2.5 py-1.5 rounded-lg border border-[#ECCFBE] dark:border-[#54433B] hover:bg-[#F2E5D8] dark:hover:bg-[#3D302A] font-bold inline-flex items-center gap-1 text-[#6B5F70] dark:text-slate-200"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Abrir</span>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={downloadInfo.blobUrl}
-                download={downloadInfo.fileName}
-                className="px-3 py-1.5 rounded-lg bg-[#CC8B79] hover:bg-[#B87A69] text-white font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Clic para Guardar</span>
-              </a>
-              <button
-                type="button"
-                onClick={handleOpenInNewTab}
-                className="px-2.5 py-1.5 rounded-lg border border-[#ECCFBE] dark:border-[#54433B] hover:bg-[#F2E5D8] dark:hover:bg-[#3D302A] font-bold inline-flex items-center gap-1 text-[#6B5F70] dark:text-slate-200"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Abrir</span>
-              </button>
-            </div>
+
+            {downloadInfo.storageUrl && (
+              <div className="pt-2 border-t border-[#ECCFBE]/60 dark:border-[#54433B]/60 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[11px] text-[#5C788A] dark:text-[#9EB0BE]">
+                  <CloudUpload className="w-3.5 h-3.5 text-[#5C788A]" />
+                  <span className="font-semibold">Guardado en Supabase Storage (evidencias-multimedia)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyCloudLink}
+                    className="px-2 py-1 rounded-md bg-white dark:bg-slate-800 border border-[#BCD1DE] dark:border-slate-700 text-[#5C788A] dark:text-[#9EB0BE] font-bold text-[11px] flex items-center gap-1 hover:bg-[#F0F4F8] cursor-pointer shadow-2xs"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        <span className="text-emerald-600">¡Enlace Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copiar Enlace Cloud</span>
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={downloadInfo.storageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2 py-1 rounded-md bg-[#5C788A] hover:bg-[#4E6777] text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Ver en Storage</span>
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

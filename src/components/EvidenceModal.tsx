@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { X, Camera, Upload, Check } from 'lucide-react';
+import { X, Camera, Upload, Check, CloudUpload, Loader2 } from 'lucide-react';
 import { Evidence } from '../types';
 import { generateId } from '../utils/storage';
+import { uploadEvidencePhotoToStorage, getSupabaseConfig, MULTIMEDIA_BUCKET_NAME } from '../lib/supabase';
 
 interface EvidenceModalProps {
   isOpen: boolean;
@@ -16,19 +17,40 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
 }) => {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
+  const [isUploadingToStorage, setIsUploadingToStorage] = useState(false);
+  const [isCloudStored, setIsCloudStored] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPhotoUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      setPhotoUrl(dataUrl);
+
+      // Upload to Supabase Storage if configured
+      const { isConfigured } = getSupabaseConfig();
+      if (isConfigured) {
+        try {
+          setIsUploadingToStorage(true);
+          const tempEvidenceId = generateId('evi');
+          const uploadRes = await uploadEvidencePhotoToStorage('temp_inspection', tempEvidenceId, file);
+          if (uploadRes.publicUrl) {
+            setPhotoUrl(uploadRes.publicUrl);
+            setIsCloudStored(true);
+          }
+        } catch (err) {
+          console.warn('Evidence storage direct upload failed, fallback on save:', err);
+        } finally {
+          setIsUploadingToStorage(false);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -45,6 +67,7 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
     onSave(newEvidence);
     setPhotoUrl(null);
     setCaption('');
+    setIsCloudStored(false);
     onClose();
   };
 
@@ -84,10 +107,31 @@ export const EvidenceModal: React.FC<EvidenceModalProps> = ({
                   alt="Vista previa evidencia"
                   className="w-full h-52 object-cover"
                 />
+                <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1.5">
+                  {isUploadingToStorage ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                      <span>Subiendo a Storage ({MULTIMEDIA_BUCKET_NAME})...</span>
+                    </>
+                  ) : isCloudStored || photoUrl.startsWith('http') ? (
+                    <>
+                      <CloudUpload className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-300">Guardado en Supabase Storage</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3 h-3 text-[#CC8B79]" />
+                      <span>Evidencia capturada (se sincronizará a Storage)</span>
+                    </>
+                  )}
+                </div>
                 <button
                   type="button"
-                  onClick={() => setPhotoUrl(null)}
-                  className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-lg hover:bg-black/80 backdrop-blur-xs text-xs font-semibold flex items-center gap-1"
+                  onClick={() => {
+                    setPhotoUrl(null);
+                    setIsCloudStored(false);
+                  }}
+                  className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-lg hover:bg-black/80 backdrop-blur-xs text-xs font-semibold flex items-center gap-1 cursor-pointer"
                 >
                   <X className="w-4 h-4" /> Cambiar
                 </button>

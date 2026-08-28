@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { X, Camera, Upload, Trash2, AlertTriangle, Check } from 'lucide-react';
+import { X, Camera, Upload, Trash2, AlertTriangle, Check, CloudUpload, Loader2 } from 'lucide-react';
 import { Finding, Severity } from '../types';
 import { generateId } from '../utils/storage';
+import { uploadFindingPhotoToStorage, getSupabaseConfig, MULTIMEDIA_BUCKET_NAME } from '../lib/supabase';
 
 interface FindingModalProps {
   isOpen: boolean;
@@ -18,6 +19,8 @@ export const FindingModal: React.FC<FindingModalProps> = ({
   const [description, setDescription] = useState('');
   const [severity, setSeverity] = useState<Severity>('Media');
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
+  const [isUploadingToStorage, setIsUploadingToStorage] = useState(false);
+  const [isCloudStored, setIsCloudStored] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isOpen) return null;
@@ -29,19 +32,40 @@ export const FindingModal: React.FC<FindingModalProps> = ({
     { value: 'Crítica', label: 'Crítica', color: 'text-[#965868] dark:text-[#D4A2B0]', bg: 'bg-[#FAF2F4] dark:bg-[#2B1E23] border-[#F1DDE1] dark:border-[#523842]' }
   ];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setPhotoUrl(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    // Fast local preview via FileReader
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      setPhotoUrl(dataUrl);
+
+      // Attempt immediate upload to Supabase Storage if configured
+      const { isConfigured } = getSupabaseConfig();
+      if (isConfigured) {
+        try {
+          setIsUploadingToStorage(true);
+          const tempFindingId = generateId('fnd');
+          const uploadRes = await uploadFindingPhotoToStorage('temp_inspection', tempFindingId, file);
+          if (uploadRes.publicUrl) {
+            setPhotoUrl(uploadRes.publicUrl);
+            setIsCloudStored(true);
+          }
+        } catch (err) {
+          console.warn('Storage direct upload failed, will fallback upon save:', err);
+        } finally {
+          setIsUploadingToStorage(false);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRemovePhoto = () => {
     setPhotoUrl(undefined);
+    setIsCloudStored(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -64,6 +88,7 @@ export const FindingModal: React.FC<FindingModalProps> = ({
     setDescription('');
     setSeverity('Media');
     setPhotoUrl(undefined);
+    setIsCloudStored(false);
     onClose();
   };
 
@@ -168,6 +193,24 @@ export const FindingModal: React.FC<FindingModalProps> = ({
                   alt="Foto de hallazgo"
                   className="w-full h-44 object-cover"
                 />
+                <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1.5">
+                  {isUploadingToStorage ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                      <span>Subiendo a Storage ({MULTIMEDIA_BUCKET_NAME})...</span>
+                    </>
+                  ) : isCloudStored || photoUrl.startsWith('http') ? (
+                    <>
+                      <CloudUpload className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-300">Guardado en Supabase Storage</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3 h-3 text-[#CC8B79]" />
+                      <span>Evidencia capturada (se sincronizará a Storage)</span>
+                    </>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleRemovePhoto}

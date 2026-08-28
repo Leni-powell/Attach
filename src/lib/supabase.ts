@@ -477,8 +477,16 @@ export async function saveInspectionToSupabase(
     const finalCreatedEmail = inspection.createdByEmail || currentUserEmail || null;
     const finalCreatedName = inspection.createdByName || currentUserName || null;
 
+    // Automatically offload any embedded base64 multimedia (photos, signatures) to Supabase Storage
+    let preparedInspection = { ...inspection };
+    try {
+      preparedInspection = await migrateInspectionMultimediaToStorage(preparedInspection);
+    } catch (migErr) {
+      console.warn('Multimedia storage upload fallback:', migErr);
+    }
+
     const inspectionWithUser: Inspection = {
-      ...inspection,
+      ...preparedInspection,
       userId: finalUserId || undefined,
       user_id: finalUserId || undefined,
       createdByEmail: finalCreatedEmail || undefined,
@@ -486,24 +494,24 @@ export async function saveInspectionToSupabase(
     };
 
     const dbRow = {
-      id: inspection.id,
+      id: preparedInspection.id,
       user_id: finalUserId,
-      type: inspection.type,
-      company: inspection.company,
-      faena: inspection.faena,
-      location: inspection.location,
-      date: inspection.date,
-      status: inspection.status,
-      checklist: inspection.checklist,
-      findings: inspection.findings,
-      evidences: inspection.evidences,
-      signature: inspection.signature || null,
-      notes: inspection.notes || '',
+      type: preparedInspection.type,
+      company: preparedInspection.company,
+      faena: preparedInspection.faena,
+      location: preparedInspection.location,
+      date: preparedInspection.date,
+      status: preparedInspection.status,
+      checklist: preparedInspection.checklist,
+      findings: preparedInspection.findings,
+      evidences: preparedInspection.evidences,
+      signature: preparedInspection.signature || null,
+      notes: preparedInspection.notes || '',
       created_by_email: finalCreatedEmail,
       created_by_name: finalCreatedName,
-      created_at: inspection.createdAt,
-      updated_at: inspection.updatedAt,
-      payload: inspectionWithUser, // Store complete JSON payload including user_id
+      created_at: preparedInspection.createdAt,
+      updated_at: preparedInspection.updatedAt,
+      payload: inspectionWithUser, // Store clean JSON payload with storage CDN URLs
     };
 
     const { error } = await client
@@ -523,7 +531,7 @@ export async function saveInspectionToSupabase(
 }
 
 /**
- * Batch sync multiple inspections to Supabase with user association
+ * Batch sync multiple inspections to Supabase with user association and multimedia migration
  */
 export async function syncAllInspectionsToSupabase(
   inspections: Inspection[],
@@ -545,7 +553,17 @@ export async function syncAllInspectionsToSupabase(
   }
 
   try {
-    const rows = inspections.map((insp) => {
+    const preparedList: Inspection[] = [];
+    for (const insp of inspections) {
+      try {
+        const cleaned = await migrateInspectionMultimediaToStorage(insp);
+        preparedList.push(cleaned);
+      } catch {
+        preparedList.push(insp);
+      }
+    }
+
+    const rows = preparedList.map((insp) => {
       const finalUserId = insp.userId || insp.user_id || currentUserId || null;
       const finalCreatedEmail = insp.createdByEmail || currentUserEmail || null;
       const finalCreatedName = insp.createdByName || currentUserName || null;
@@ -617,10 +635,272 @@ export async function deleteInspectionFromSupabase(id: string): Promise<{
   }
 }
 
+// -------------------------------------------------------------
+// SUPABASE STORAGE (EVIDENCIAS MULTIMEDIA Y REPORTES PDF)
+// -------------------------------------------------------------
+
+export const MULTIMEDIA_BUCKET_NAME = 'evidencias-multimedia';
+
+/**
+ * Converts a Base64 / Data URL to a native JavaScript Blob with MIME detection.
+ */
+export function dataUrlToBlob(dataUrl: string): { blob: Blob; mimeType: string; extension: string } {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+  if (!match) {
+    // Fallback: standard utf8 blob
+    return {
+      blob: new Blob([dataUrl], { type: 'text/plain' }),
+      mimeType: 'text/plain',
+      extension: 'txt'
+    };
+  }
+
+  const mimeType = match[1];
+  const b64Data = match[2];
+  const byteCharacters = atob(b64Data);
+  const byteArrays: Uint8Array[] = [];
+
+  for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+    const slice = byteCharacters.slice(offset, offset + 512);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+
+  const blob = new Blob(byteArrays, { type: mimeType });
+  let extension = 'png';
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) extension = 'jpg';
+  else if (mimeType.includes('webp')) extension = 'webp';
+  else if (mimeType.includes('pdf')) extension = 'pdf';
+
+  return { blob, mimeType, extension };
+}
+
+/**
+ * Uploads a file, Blob or Base64 string directly to Supabase Storage bucket 'evidencias-multimedia'.
+ */
+export async function uploadToMultimediaStorage(
+  filePath: string,
+  source: File | Blob | string,
+  customContentType?: string
+): Promise<{ publicUrl: string | null; error: string | null }> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { publicUrl: null, error: 'Supabase no configurado' };
+  }
+
+  try {
+    let fileBody: File | Blob;
+    let contentType = customContentType || 'image/png';
+
+    if (typeof source === 'string') {
+      if (source.startsWith('data:')) {
+        const converted = dataUrlToBlob(source);
+        fileBody = converted.blob;
+        contentType = customContentType || converted.mimeType;
+      } else {
+        // Already a remote URL
+        return { publicUrl: source, error: null };
+      }
+    } else {
+      fileBody = source;
+      contentType = customContentType || source.type || 'image/png';
+    }
+
+    // Clean file path (remove leading slashes)
+    const cleanPath = filePath.replace(/^\/+/, '');
+
+    const { data: _uploadData, error: uploadError } = await client.storage
+      .from(MULTIMEDIA_BUCKET_NAME)
+      .upload(cleanPath, fileBody, {
+        contentType,
+        upsert: true,
+        cacheControl: '3600'
+      });
+
+    if (uploadError) {
+      console.warn(`Error uploading to ${MULTIMEDIA_BUCKET_NAME}/${cleanPath}:`, uploadError.message);
+      return { publicUrl: null, error: uploadError.message };
+    }
+
+    // Get public URL
+    const { data: urlData } = client.storage
+      .from(MULTIMEDIA_BUCKET_NAME)
+      .getPublicUrl(cleanPath);
+
+    return { publicUrl: urlData.publicUrl, error: null };
+  } catch (err: any) {
+    console.error('Exception uploading to storage:', err);
+    return { publicUrl: null, error: err.message || 'Error al subir archivo a Storage' };
+  }
+}
+
+/**
+ * Uploads a finding photo to Supabase Storage (evidencias-multimedia/hallazgos/...)
+ */
+export async function uploadFindingPhotoToStorage(
+  inspectionId: string,
+  findingId: string,
+  photoSource: string | File | Blob
+): Promise<{ publicUrl: string | null; error: string | null }> {
+  const timestamp = Date.now();
+  const path = `hallazgos/${inspectionId}/${findingId}_${timestamp}.jpg`;
+  return uploadToMultimediaStorage(path, photoSource, 'image/jpeg');
+}
+
+/**
+ * Uploads a general inspection evidence photo to Supabase Storage (evidencias-multimedia/evidencias/...)
+ */
+export async function uploadEvidencePhotoToStorage(
+  inspectionId: string,
+  evidenceId: string,
+  photoSource: string | File | Blob
+): Promise<{ publicUrl: string | null; error: string | null }> {
+  const timestamp = Date.now();
+  const path = `evidencias/${inspectionId}/${evidenceId}_${timestamp}.jpg`;
+  return uploadToMultimediaStorage(path, photoSource, 'image/jpeg');
+}
+
+/**
+ * Uploads a supervisor signature canvas drawing to Supabase Storage (evidencias-multimedia/firmas/...)
+ */
+export async function uploadSignatureToStorage(
+  inspectionId: string,
+  signatureDataUrl: string
+): Promise<{ publicUrl: string | null; error: string | null }> {
+  const timestamp = Date.now();
+  const path = `firmas/${inspectionId}/firma_${timestamp}.png`;
+  return uploadToMultimediaStorage(path, signatureDataUrl, 'image/png');
+}
+
+/**
+ * Uploads an official PDF inspection report to Supabase Storage (evidencias-multimedia/reportes-pdf/...)
+ */
+export async function uploadPdfReportToStorage(
+  fileName: string,
+  pdfBlob: Blob
+): Promise<{ publicUrl: string | null; error: string | null }> {
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `reportes-pdf/${safeName}`;
+  return uploadToMultimediaStorage(path, pdfBlob, 'application/pdf');
+}
+
+/**
+ * Automatically inspects and offloads all heavy embedded Base64 multimedia items 
+ * (finding photos, evidences, signatures) to Supabase Storage, freeing memory and DB payload size.
+ */
+export async function migrateInspectionMultimediaToStorage(inspection: Inspection): Promise<Inspection> {
+  const client = getSupabaseClient();
+  if (!client) return inspection;
+
+  const updated: Inspection = JSON.parse(JSON.stringify(inspection));
+  let changed = false;
+
+  // 1. Process Findings photos
+  if (Array.isArray(updated.findings)) {
+    for (let i = 0; i < updated.findings.length; i++) {
+      const f = updated.findings[i];
+      if (f.photoUrl && f.photoUrl.startsWith('data:')) {
+        const { publicUrl } = await uploadFindingPhotoToStorage(updated.id, f.id, f.photoUrl);
+        if (publicUrl) {
+          f.photoUrl = publicUrl;
+          changed = true;
+        }
+      }
+    }
+  }
+
+  // 2. Process Evidences photos
+  if (Array.isArray(updated.evidences)) {
+    for (let i = 0; i < updated.evidences.length; i++) {
+      const e = updated.evidences[i];
+      if (e.photoUrl && e.photoUrl.startsWith('data:')) {
+        const { publicUrl } = await uploadEvidencePhotoToStorage(updated.id, e.id, e.photoUrl);
+        if (publicUrl) {
+          e.photoUrl = publicUrl;
+          changed = true;
+        }
+      }
+    }
+  }
+
+  // 3. Process Signature image
+  if (updated.signature?.dataUrl && updated.signature.dataUrl.startsWith('data:')) {
+    const { publicUrl } = await uploadSignatureToStorage(updated.id, updated.signature.dataUrl);
+    if (publicUrl) {
+      updated.signature.dataUrl = publicUrl;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    updated.updatedAt = new Date().toISOString();
+  }
+
+  return updated;
+}
+
+/**
+ * Tests connection to Supabase Storage and verifies if 'evidencias-multimedia' bucket exists.
+ */
+export async function testSupabaseStorageConnection(): Promise<{
+  success: boolean;
+  bucketExists: boolean;
+  message: string;
+}> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      success: false,
+      bucketExists: false,
+      message: 'Supabase no está configurado.'
+    };
+  }
+
+  try {
+    const { data: buckets, error: bucketsError } = await client.storage.listBuckets();
+    if (bucketsError) {
+      return {
+        success: false,
+        bucketExists: false,
+        message: `Fallo al verificar Storage: ${bucketsError.message}`
+      };
+    }
+
+    const bucketFound = buckets?.some(
+      (b) => b.name === MULTIMEDIA_BUCKET_NAME || b.id === MULTIMEDIA_BUCKET_NAME
+    );
+
+    if (!bucketFound) {
+      return {
+        success: true,
+        bucketExists: false,
+        message: `Conectado a Storage. Falta crear el bucket "${MULTIMEDIA_BUCKET_NAME}".`
+      };
+    }
+
+    return {
+      success: true,
+      bucketExists: true,
+      message: `Storage activo y bucket "${MULTIMEDIA_BUCKET_NAME}" verificado exitosamente.`
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      bucketExists: false,
+      message: `Error al probar Storage: ${err.message || 'Error de red'}`
+    };
+  }
+}
+
 /**
  * SQL creation script provided for users to run on Supabase SQL Editor
  */
-export const SUPABASE_SCHEMA_SQL = `-- 1. TABLA PRINCIPAL DE INSPECCIONES (Vinculada a usuario autenticado de Supabase)
+export const SUPABASE_SCHEMA_SQL = `-- =============================================================================
+-- 1. TABLA PRINCIPAL DE INSPECCIONES (Vinculada a usuario autenticado de Supabase)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS public.inspections (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -642,11 +922,13 @@ CREATE TABLE IF NOT EXISTS public.inspections (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. HABILITAR ROW LEVEL SECURITY (RLS)
+-- =============================================================================
+-- 2. HABILITAR ROW LEVEL SECURITY (RLS) EN TABLA INSPECCIONES
+-- =============================================================================
 ALTER TABLE public.inspections ENABLE ROW LEVEL SECURITY;
 
 -- 3. POLÍTICA DE ACCESO (Permitir lectura y escritura a clientes autenticados y clave anon)
-CREATE POLICY "Permitir acceso a inspecciones" 
+CREATE POLICY "Permitir acceso total a inspecciones" 
 ON public.inspections 
 FOR ALL 
 TO anon, authenticated 
@@ -658,5 +940,46 @@ CREATE INDEX IF NOT EXISTS idx_inspections_user_id ON public.inspections(user_id
 CREATE INDEX IF NOT EXISTS idx_inspections_company ON public.inspections(company);
 CREATE INDEX IF NOT EXISTS idx_inspections_date ON public.inspections(date);
 CREATE INDEX IF NOT EXISTS idx_inspections_status ON public.inspections(status);
+
+-- =============================================================================
+-- 5. CREACIÓN DEL BUCKET SUPABASE STORAGE: evidencias-multimedia
+-- (Para Fotos de Hallazgos, Evidencias, Firmas y Reportes PDF)
+-- =============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'evidencias-multimedia',
+  'evidencias-multimedia',
+  true,
+  52428800, -- 50 MB
+  ARRAY['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf']
+)
+ON CONFLICT (id) DO UPDATE 
+SET public = true, 
+    file_size_limit = 52428800;
+
+-- 6. POLÍTICAS DE ACCESO PARA SUPABASE STORAGE (Lectura y Subida Pública / Autenticada)
+CREATE POLICY "Acceso de lectura publica evidencias multimedia"
+ON storage.objects
+FOR SELECT
+TO anon, authenticated
+USING (bucket_id = 'evidencias-multimedia');
+
+CREATE POLICY "Permitir subida a evidencias multimedia"
+ON storage.objects
+FOR INSERT
+TO anon, authenticated
+WITH CHECK (bucket_id = 'evidencias-multimedia');
+
+CREATE POLICY "Permitir actualizacion en evidencias multimedia"
+ON storage.objects
+FOR UPDATE
+TO anon, authenticated
+USING (bucket_id = 'evidencias-multimedia');
+
+CREATE POLICY "Permitir eliminacion en evidencias multimedia"
+ON storage.objects
+FOR DELETE
+TO anon, authenticated
+USING (bucket_id = 'evidencias-multimedia');
 `;
 

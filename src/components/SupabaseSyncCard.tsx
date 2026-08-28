@@ -16,7 +16,9 @@ import {
   Save,
   Key,
   Globe,
-  Info
+  Info,
+  FolderArchive,
+  HardDrive
 } from 'lucide-react';
 import {
   getSupabaseConfig,
@@ -24,11 +26,15 @@ import {
   sanitizeSupabaseUrl,
   sanitizeSupabaseKey,
   testSupabaseConnection,
+  testSupabaseStorageConnection,
   fetchInspectionsFromSupabase,
   syncAllInspectionsToSupabase,
+  migrateInspectionMultimediaToStorage,
+  MULTIMEDIA_BUCKET_NAME,
   SUPABASE_SCHEMA_SQL
 } from '../lib/supabase';
 import { Inspection } from '../types';
+import { saveStoredInspections } from '../utils/storage';
 
 interface SupabaseSyncCardProps {
   inspections: Inspection[];
@@ -52,6 +58,8 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
     success: boolean;
     message: string;
     tableExists?: boolean;
+    storageBucketExists?: boolean;
+    storageMessage?: string;
   }>({
     tested: false,
     loading: false,
@@ -61,8 +69,21 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
 
   const [isSyncingUp, setIsSyncingUp] = useState(false);
   const [isPullingDown, setIsPullingDown] = useState(false);
+  const [isOptimizingStorage, setIsOptimizingStorage] = useState(false);
   const [showSqlGuide, setShowSqlGuide] = useState(false);
   const [copiedSql, setCopiedSql] = useState(false);
+
+  // Count multimedia assets across all inspections
+  const totalFindingsPhotos = inspections.reduce(
+    (acc, insp) => acc + (insp.findings?.filter((f) => !!f.photoUrl).length || 0),
+    0
+  );
+  const totalEvidencesPhotos = inspections.reduce(
+    (acc, insp) => acc + (insp.evidences?.filter((e) => !!e.photoUrl).length || 0),
+    0
+  );
+  const totalSignatures = inspections.filter((insp) => !!insp.signature?.dataUrl).length;
+  const totalMultimediaItems = totalFindingsPhotos + totalEvidencesPhotos + totalSignatures;
 
   // Auto test on mount if configured
   useEffect(() => {
@@ -93,26 +114,29 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
 
   const handleTestConnection = async (showToastFeedback = true) => {
     setTestingStatus(prev => ({ ...prev, loading: true }));
-    const result = await testSupabaseConnection();
+    const dbResult = await testSupabaseConnection();
+    const storageResult = await testSupabaseStorageConnection();
+
+    const isOverallSuccess = dbResult.success;
     setTestingStatus({
       tested: true,
       loading: false,
-      success: result.success,
-      message: result.message,
-      tableExists: result.tableExists
+      success: isOverallSuccess,
+      message: dbResult.message,
+      tableExists: dbResult.tableExists,
+      storageBucketExists: storageResult.bucketExists,
+      storageMessage: storageResult.message
     });
 
     if (showToastFeedback) {
-      if (result.success) {
+      if (isOverallSuccess) {
         onShowToast(
           'success',
-          result.tableExists
-            ? 'Conexión a Supabase establecida correctamente.'
-            : 'Conectado a Supabase. Se requiere ejecutar el script SQL.',
+          `Conexión a DB y Storage verificadas. ${storageResult.bucketExists ? 'Bucket activo.' : 'Ejecuta el script SQL para crear el bucket de Storage.'}`,
           'Supabase Conectado'
         );
       } else {
-        onShowToast('error', result.message, 'Fallo de Conexión');
+        onShowToast('error', dbResult.message, 'Fallo de Conexión');
       }
     }
   };
@@ -129,7 +153,7 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
     setIsSyncingUp(false);
 
     if (result.success) {
-      onShowToast('success', `Se sincronizaron ${result.syncedCount} inspecciones con Supabase.`, 'Sube Completada');
+      onShowToast('success', `Se sincronizaron ${result.syncedCount} inspecciones y sus evidencias multimedia con Supabase.`, 'Subida Exitosa');
     } else {
       onShowToast('error', result.error || 'Error al subir datos', 'Error de Sincronización');
     }
@@ -158,6 +182,38 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
     }
   };
 
+  const handleMigrateMultimediaToStorage = async () => {
+    if (!config.isConfigured) {
+      onShowToast('warning', 'Configura tu URL y Clave Anon de Supabase primero.', 'Supabase no conectado');
+      setIsEditingKeys(true);
+      return;
+    }
+
+    try {
+      setIsOptimizingStorage(true);
+      onShowToast('info', 'Subiendo fotos y firmas a Supabase Storage (evidencias-multimedia)...', 'Optimizando Almacenamiento');
+
+      const migratedList: Inspection[] = [];
+      for (const insp of inspections) {
+        const cleaned = await migrateInspectionMultimediaToStorage(insp);
+        migratedList.push(cleaned);
+      }
+
+      // Save optimized list to local storage
+      saveStoredInspections(migratedList);
+      onInspectionsSynced(migratedList);
+
+      // Also sync clean payload to Supabase DB
+      await syncAllInspectionsToSupabase(migratedList);
+
+      setIsOptimizingStorage(false);
+      onShowToast('success', 'Todas las fotos, firmas y evidencias fueron migradas a Supabase Storage y liberadas del código local.', 'Optimización Completa');
+    } catch (err: any) {
+      setIsOptimizingStorage(false);
+      onShowToast('error', err.message || 'Error durante la optimización', 'Fallo');
+    }
+  };
+
   const handleCopySql = () => {
     navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
     setCopiedSql(true);
@@ -179,14 +235,14 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-extrabold text-[#38303B] dark:text-slate-100">
-                Conexión con Supabase (PostgreSQL)
+                Conexión Supabase (DB & Storage)
               </h3>
               <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300">
-                Cloud DB
+                PostgreSQL + CDN
               </span>
             </div>
             <p className="text-xs text-[#87778C] dark:text-slate-400 mt-0.5">
-              Persistencia cloud en tiempo real, respaldos automáticos y sincronización multi-dispositivo.
+              Persistencia cloud en tiempo real y almacenamiento de fotos, firmas y reportes PDF en bucket <code>{MULTIMEDIA_BUCKET_NAME}</code>.
             </p>
           </div>
         </div>
@@ -199,20 +255,56 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              Pendiente Configuración
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Credenciales Pendientes
             </span>
           )}
         </div>
       </div>
 
-      {/* Connection Status Banner */}
+      {/* Storage Bucket Info Banner */}
+      <div className="p-3.5 rounded-2xl bg-[#F0F4F8] dark:bg-[#1E262C] border border-[#BCD1DE] dark:border-[#3E4D59] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#5C788A] dark:text-[#9EB0BE]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 flex items-center justify-center text-[#5C788A] shrink-0 shadow-2xs">
+            <FolderArchive className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[#38303B] dark:text-slate-100">Storage de Evidencias Multimedia</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-[#BCD1DE] dark:border-slate-700">
+                {MULTIMEDIA_BUCKET_NAME}
+              </span>
+            </div>
+            <p className="text-[11px] text-[#6B5F70] dark:text-slate-400 mt-0.5">
+              Fotos de hallazgos, evidencias en terreno, firmas de supervisores y copias de reportes PDF oficiales.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 font-bold text-[11px] text-[#5C788A] dark:text-[#9EB0BE] border border-[#BCD1DE] dark:border-slate-700 shadow-2xs">
+            {totalMultimediaItems} elemento(s) multimedia
+          </span>
+          <button
+            type="button"
+            onClick={handleMigrateMultimediaToStorage}
+            disabled={isOptimizingStorage || !config.isConfigured}
+            className="px-3 py-1.5 rounded-xl bg-[#5C788A] hover:bg-[#4E6777] text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+            title="Sube y migra cualquier foto o firma local al Storage de Supabase para optimizar el tamaño de la base de datos"
+          >
+            <HardDrive className={`w-3.5 h-3.5 ${isOptimizingStorage ? 'animate-spin' : ''}`} />
+            <span>{isOptimizingStorage ? 'Migrando...' : 'Migrar a Storage'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Diagnostic & Connection Banner */}
       {testingStatus.tested && (
         <div
-          className={`p-3.5 rounded-2xl border text-xs font-medium flex items-start gap-2.5 ${
+          className={`p-3.5 rounded-2xl text-xs flex items-start gap-2.5 border transition-all ${
             testingStatus.success
-              ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-200'
-              : 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/80 text-rose-800 dark:text-rose-200'
+              ? 'bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/80'
+              : 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800/80'
           }`}
         >
           {testingStatus.success ? (
@@ -220,74 +312,73 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
           ) : (
             <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
           )}
-          <div className="flex-1 space-y-1">
-            <p className="font-bold">{testingStatus.message}</p>
-            {testingStatus.success && testingStatus.tableExists === false && (
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                Abre la sección "Esquema SQL de Supabase" abajo para crear la tabla <code>inspections</code> con 1 clic.
-              </p>
+          <div className="space-y-1 flex-1">
+            <p className="font-semibold">{testingStatus.message}</p>
+            {testingStatus.storageMessage && (
+              <p className="text-[11px] opacity-90">{testingStatus.storageMessage}</p>
+            )}
+            {testingStatus.success && (!testingStatus.tableExists || !testingStatus.storageBucketExists) && (
+              <div className="pt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSqlGuide(true)}
+                  className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-[11px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Layers className="w-3 h-3" />
+                  <span>Ver y Copiar Script SQL Completo (Tabla + Storage Bucket)</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Connection Credentials Config Form (Collapsible / Toggleable) */}
-      <div className="space-y-3 bg-slate-50/80 dark:bg-slate-950/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+      {/* Configuration Form / Status Bar */}
+      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
             <Key className="w-3.5 h-3.5 text-[#CC8B79]" />
-            Parámetros de Acceso Supabase
+            Parámetros del Proyecto
           </span>
           <button
             type="button"
             onClick={() => setIsEditingKeys(!isEditingKeys)}
-            className="text-xs font-bold text-[#5E5365] dark:text-[#CC8B79] hover:underline cursor-pointer"
+            className="text-xs font-bold text-[#5E5365] dark:text-slate-300 hover:underline cursor-pointer"
           >
-            {isEditingKeys ? 'Ocultar campos' : 'Editar credenciales'}
+            {isEditingKeys ? 'Ocultar Campos' : 'Editar Credenciales'}
           </button>
         </div>
 
         {isEditingKeys ? (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-3 pt-1">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  Project URL (URL base de tu proyecto)
-                </label>
-                <span className="text-[10px] text-[#5C788A] dark:text-slate-400">
-                  Debe terminar en <strong>.supabase.co</strong>
-                </span>
-              </div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Project URL de Supabase (ej: https://xyz.supabase.co)
+              </label>
               <div className="relative">
+                <Globe className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
-                  type="text"
-                  placeholder="https://xyzcompany.supabase.co"
+                  type="url"
                   value={supabaseUrlInput}
                   onChange={(e) => setSupabaseUrlInput(e.target.value)}
-                  className="w-full text-xs font-mono px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#CC8B79] focus:outline-none"
+                  placeholder="https://TU_PROYECTO.supabase.co"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
-                💡 Pega la URL base (ej: <code>https://tuid.supabase.co</code>). No agregues <code>/rest/v1</code> ni barras al final.
-              </p>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  Anon Public API Key
-                </label>
-                <span className="text-[10px] text-slate-400">
-                  Clave pública (anon)
-                </span>
-              </div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Clave Anónima / Public Anon Key
+              </label>
               <div className="relative">
+                <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                 <input
                   type="password"
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                   value={supabaseKeyInput}
                   onChange={(e) => setSupabaseKeyInput(e.target.value)}
-                  className="w-full text-xs font-mono px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-[#CC8B79] focus:outline-none"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
                 />
               </div>
             </div>
@@ -353,10 +444,10 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
             </div>
             <div>
               <span className="text-xs sm:text-sm font-extrabold block">
-                Subir a Supabase
+                Subir a Supabase (DB & Storage)
               </span>
               <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-                Guardar {inspections.length} inspección(es) locales en la nube
+                Guardar {inspections.length} auditorías y evidencias en la nube
               </span>
             </div>
           </div>
@@ -395,7 +486,7 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-[#CC8B79]" />
-            <span>Esquema SQL para Supabase (Tabla <code>inspections</code> + RLS)</span>
+            <span>Esquema SQL para Supabase (Tabla <code>inspections</code> + Bucket <code>{MULTIMEDIA_BUCKET_NAME}</code>)</span>
           </div>
           {showSqlGuide ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
@@ -423,7 +514,7 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
               <ol className="list-decimal list-inside space-y-0.5">
                 <li>Entra a tu consola de Supabase y ve a la sección <strong>SQL Editor</strong>.</li>
                 <li>Pega este script y haz clic en <strong>Run</strong>.</li>
-                <li>¡Listo! Tu base de datos PostgreSQL quedará configurada para recibir y consultar las inspecciones.</li>
+                <li>¡Listo! La tabla <code>inspections</code> y el bucket <code>{MULTIMEDIA_BUCKET_NAME}</code> quedarán creados con políticas públicas.</li>
               </ol>
             </div>
           </div>
