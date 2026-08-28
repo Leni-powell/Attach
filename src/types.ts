@@ -44,6 +44,7 @@ export interface Inspection {
   faena: string;
   location: string;
   date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
   status: InspectionStatus;
   checklist: ChecklistItem[];
   findings: Finding[];

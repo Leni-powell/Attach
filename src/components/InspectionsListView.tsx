@@ -4,6 +4,7 @@ import {
   Filter,
   Plus,
   Calendar,
+  Clock,
   MapPin,
   AlertTriangle,
   Image as ImageIcon,
@@ -12,6 +13,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Inspection, InspectionStatus, InspectionType } from '../types';
+import { getInspectionFormattedTime } from '../utils/formatters';
 
 interface InspectionsListViewProps {
   inspections: Inspection[];
@@ -322,9 +324,12 @@ export const InspectionsListView: React.FC<InspectionsListViewProps> = ({
                       <span>{evidences.length} fotos</span>
                     </span>
 
-                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-slate-400">
-                      <Calendar className="w-3 h-3" />
+                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-medium">
+                      <Calendar className="w-3 h-3 text-slate-400" />
                       <span>{insp.date}</span>
+                      <span className="text-slate-300 dark:text-slate-700">·</span>
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span>{getInspectionFormattedTime(insp)}</span>
                     </span>
 
                     {(insp.createdByName || insp.createdByEmail) && (

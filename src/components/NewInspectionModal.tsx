@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, CheckCircle2, ShieldCheck, HardHat, Leaf, Cog, Calendar, Building2, MapPin } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle2, ShieldCheck, HardHat, Leaf, Cog, Calendar, Building2, MapPin, Clock } from 'lucide-react';
 import { ChecklistItem, Inspection, InspectionType } from '../types';
 import { CHECKLIST_TEMPLATES, SAMPLE_COMPANIES, SAMPLE_FAENAS } from '../data/templates';
 import { generateId } from '../utils/storage';
@@ -20,6 +20,10 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
   const [faena, setFaena] = useState(SAMPLE_FAENAS[0]);
   const [location, setLocation] = useState('Sector Principal');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
   const [notes, setNotes] = useState('');
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [customItemText, setCustomItemText] = useState('');
@@ -76,6 +80,7 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
       faena: faena.trim(),
       location: location.trim(),
       date,
+      time: time.trim() || new Date().toTimeString().slice(0, 5),
       status: 'pendiente', // Created with estado "pendiente" as required
       checklist,
       findings: [],
@@ -194,8 +199,8 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
             </div>
           </div>
 
-          {/* Ubicación & Fecha */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Ubicación, Fecha & Hora */}
+          <div className="space-y-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                 Ubicación / Sector Específico *
@@ -213,19 +218,37 @@ export const NewInspectionModal: React.FC<NewInspectionModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
-                Fecha Programada *
-              </label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
-                />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                  Fecha Programada *
+                </label>
+                <div className="relative">
+                  <Calendar className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                  <input
+                    type="date"
+                    required
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+                  Hora de Inspección *
+                </label>
+                <div className="relative">
+                  <Clock className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                  <input
+                    type="time"
+                    required
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                    className="w-full min-h-[50px] pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#5E5365]"
+                  />
+                </div>
               </div>
             </div>
           </div>

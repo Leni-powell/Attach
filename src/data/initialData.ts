@@ -15,6 +15,7 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
     faena: 'Faena Norte',
     location: 'Sector A',
     date: '2026-08-18',
+    time: '14:00',
     status: 'completada',
     checklist: [
       {
@@ -76,6 +77,7 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
     faena: 'Edificio B',
     location: 'Piso 3',
     date: '2026-08-20',
+    time: '08:30',
     status: 'pendiente',
     checklist: [
       {
@@ -124,6 +126,7 @@ export const INITIAL_INSPECTIONS: Inspection[] = [
     faena: 'Sala máquinas',
     location: 'Sector B',
     date: '2026-08-15',
+    time: '10:00',
     status: 'vencida',
     checklist: [
       {

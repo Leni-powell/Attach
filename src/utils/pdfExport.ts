@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Inspection, InspectionType } from '../types';
+import { getInspectionFormattedTime, formatDateTime } from './formatters';
 
 /**
  * Universal helper to trigger automatic file download from a Blob across all browsers/iframes.
@@ -757,8 +758,8 @@ function renderPdfPhotoCard(
     doc.setFontSize(6.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(135, 119, 140);
-    const dateFormatted = photo.date ? new Date(photo.date).toLocaleDateString('es-CL') : '';
-    const descText = photo.subtitle ? `${photo.subtitle} ${dateFormatted ? `(${dateFormatted})` : ''}` : dateFormatted;
+    const dateFormatted = photo.date ? formatDateTime(photo.date) : '';
+    const descText = photo.subtitle ? `${photo.subtitle} ${dateFormatted ? `[${dateFormatted}]` : ''}` : (dateFormatted ? `Hora: ${dateFormatted}` : '');
     const subSnippet = doc.splitTextToSize(descText, cardWidth - 6);
     doc.text(subSnippet[0] || '', x + 3, textY + 3.5);
   }
@@ -802,7 +803,7 @@ export function buildSingleInspectionPdfDocument(
   doc.setFont('helvetica', 'bold');
   doc.text(`FOLIO: ${inspection.id}`, pageWidth - 14, 10.5, { align: 'right' });
   doc.setFont('helvetica', 'normal');
-  doc.text(`Emisión: ${new Date().toLocaleDateString('es-CL')}`, pageWidth - 14, 16.5, { align: 'right' });
+  doc.text(`Fecha/Hora: ${inspection.date} ${getInspectionFormattedTime(inspection)}`, pageWidth - 14, 16.5, { align: 'right' });
 
   currentY = 32;
 
@@ -830,6 +831,7 @@ export function buildSingleInspectionPdfDocument(
         { content: 'Empresa', styles: { fontStyle: 'bold' as const, fillColor: [245, 242, 240], textColor: [94, 83, 101] } },
         { content: 'Faena / Obra', styles: { fontStyle: 'bold' as const, fillColor: [245, 242, 240], textColor: [94, 83, 101] } },
         { content: 'Ubicación', styles: { fontStyle: 'bold' as const, fillColor: [245, 242, 240], textColor: [94, 83, 101] } },
+        { content: 'Fecha y Hora', styles: { fontStyle: 'bold' as const, fillColor: [245, 242, 240], textColor: [94, 83, 101] } },
         { content: 'Estado', styles: { fontStyle: 'bold' as const, fillColor: [245, 242, 240], textColor: [94, 83, 101] } }
       ]
     ],
@@ -838,6 +840,7 @@ export function buildSingleInspectionPdfDocument(
         inspection.company,
         inspection.faena,
         inspection.location,
+        `${inspection.date} ${getInspectionFormattedTime(inspection)}`,
         {
           content: inspection.status.toUpperCase(),
           styles: { fontStyle: 'bold' as const, textColor: statusColor }
@@ -910,6 +913,7 @@ export function buildSingleInspectionPdfDocument(
     const findingsRows = inspection.findings.map((f, idx) => [
       `${idx + 1}`,
       f.title,
+      f.createdAt ? formatDateTime(f.createdAt) : '-',
       {
         content: f.severity.toUpperCase(),
         styles: {
@@ -926,15 +930,16 @@ export function buildSingleInspectionPdfDocument(
     autoTable(doc, {
       startY: currentY,
       theme: 'grid',
-      head: [['#', 'Hallazgo Registrado', 'Severidad', 'Detalle / Acción']],
+      head: [['#', 'Hallazgo Registrado', 'Hora / Fecha', 'Severidad', 'Detalle / Acción']],
       body: findingsRows,
       headStyles: { fillColor: [94, 83, 101], textColor: [255, 255, 255], fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2.5 },
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 48 },
-        2: { cellWidth: 26, halign: 'center' },
-        3: { cellWidth: 'auto' }
+        0: { cellWidth: 8, halign: 'center' },
+        1: { cellWidth: 42 },
+        2: { cellWidth: 30, halign: 'center' },
+        3: { cellWidth: 24, halign: 'center' },
+        4: { cellWidth: 'auto' }
       },
       margin: { left: 14, right: 14 }
     });
@@ -1377,14 +1382,15 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
 
   const findingsRows =
     inspection.findings.length === 0
-      ? `<tr><td colspan="4" style="color: #87778c; font-style: italic; text-align: center; padding: 12px;">No se registraron hallazgos ni condiciones subestándar.</td></tr>`
+      ? `<tr><td colspan="5" style="color: #87778c; font-style: italic; text-align: center; padding: 12px;">No se registraron hallazgos ni condiciones subestándar.</td></tr>`
       : inspection.findings
           .map(
             (f, idx) => `
         <tr>
           <td style="width: 30px; text-align: center;">${idx + 1}</td>
           <td><b>${f.title}</b></td>
-          <td style="width: 90px; text-align: center; color: ${
+          <td style="width: 110px; text-align: center; font-size: 10px; color: #6b5f70;">${f.createdAt ? formatDateTime(f.createdAt) : '-'}</td>
+          <td style="width: 80px; text-align: center; color: ${
             f.severity === 'Crítica' || f.severity === 'Alta' ? '#965868' : '#BD9F8D'
           }; font-weight: bold;">
             ${f.severity}
@@ -1396,7 +1402,7 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
           .join('');
 
   // Collect photos from findings and evidences
-  const photoItems: { title: string; subtitle?: string; photoUrl: string; severity?: string; type: string }[] = [];
+  const photoItems: { title: string; subtitle?: string; photoUrl: string; severity?: string; type: string; createdAt?: string }[] = [];
   if (Array.isArray(inspection.findings)) {
     inspection.findings.forEach((f) => {
       if (f.photoUrl) {
@@ -1405,7 +1411,8 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
           title: f.title,
           subtitle: f.description,
           photoUrl: f.photoUrl,
-          severity: f.severity
+          severity: f.severity,
+          createdAt: f.createdAt
         });
       }
     });
@@ -1417,7 +1424,8 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
           type: 'Evidencia',
           title: ev.caption || `Evidencia fotográfica #${idx + 1}`,
           subtitle: `Registro en ${inspection.faena}`,
-          photoUrl: ev.photoUrl
+          photoUrl: ev.photoUrl,
+          createdAt: ev.createdAt
         });
       }
     });
@@ -1442,6 +1450,7 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
               ${p.title}
             </div>
             ${p.subtitle ? `<div style="font-size: 10px; color: #6b5f70; margin-top: 3px;">${p.subtitle}</div>` : ''}
+            ${p.createdAt ? `<div style="font-size: 9.5px; color: #87778c; margin-top: 3px; font-weight: 500;">Hora subida: ${formatDateTime(p.createdAt)}</div>` : ''}
           </div>
         `
           )
@@ -1463,7 +1472,7 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
         .brand { font-size: 20px; font-weight: 900; color: #5E5365; margin-bottom: 2px; }
         .badge { display: inline-block; background: #CC8B79; color: white; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
         .title { font-size: 14px; font-weight: bold; margin-top: 6px; color: #38303b; }
-        .meta-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #fdfbf9; padding: 10px; border-radius: 8px; border: 1px solid #e5dfdc; margin-bottom: 16px; font-size: 11px; }
+        .meta-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; background: #fdfbf9; padding: 10px; border-radius: 8px; border: 1px solid #e5dfdc; margin-bottom: 16px; font-size: 11px; }
         .meta-label { color: #87778c; font-size: 10px; margin-bottom: 2px; text-transform: uppercase; font-weight: 600; }
         .meta-value { font-weight: bold; color: #38303b; }
         h3 { font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #e5dfdc; padding-bottom: 4px; margin-top: 16px; margin-bottom: 8px; color: #5E5365; }
@@ -1489,7 +1498,7 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
         </div>
         <div style="text-align: right; font-size: 10px; color: #87778c;">
           <div><b>FOLIO:</b> ${inspection.id}</div>
-          <div><b>Fecha:</b> ${inspection.date}</div>
+          <div><b>Fecha/Hora:</b> ${inspection.date} ${getInspectionFormattedTime(inspection)}</div>
           <div><b>Emisión:</b> ${new Date().toLocaleDateString('es-CL')}</div>
         </div>
       </div>
@@ -1506,6 +1515,10 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
         <div>
           <div class="meta-label">Ubicación</div>
           <div class="meta-value">${inspection.location}</div>
+        </div>
+        <div>
+          <div class="meta-label">Fecha y Hora</div>
+          <div class="meta-value">${inspection.date} ${getInspectionFormattedTime(inspection)}</div>
         </div>
         <div>
           <div class="meta-label">Estado</div>
@@ -1537,6 +1550,7 @@ export function generateSingleHtmlReport(inspection: Inspection): string {
           <tr>
             <th>#</th>
             <th>Hallazgo</th>
+            <th>Hora / Registro</th>
             <th>Severidad</th>
             <th>Descripción</th>
           </tr>

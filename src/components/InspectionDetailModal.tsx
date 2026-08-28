@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   X,
   Calendar,
+  Clock,
   Building2,
   MapPin,
   CheckCircle2,
@@ -23,6 +24,7 @@ import { SignatureCanvas } from './SignatureCanvas';
 import { FindingModal } from './FindingModal';
 import { EvidenceModal } from './EvidenceModal';
 import { generateId } from '../utils/storage';
+import { getInspectionFormattedTime, formatDateTime } from '../utils/formatters';
 
 interface InspectionDetailModalProps {
   inspection: Inspection;
@@ -306,6 +308,9 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" /> {inspection.date}
+              </span>
+              <span className="flex items-center gap-1 text-[#5E5365] dark:text-[#CC8B79] font-medium bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                <Clock className="w-3.5 h-3.5 text-slate-400" /> {getInspectionFormattedTime(inspection)}
               </span>
               {(inspection.user_id || inspection.userId || inspection.createdByName || inspection.createdByEmail) && (
                 <span className="flex items-center gap-1 text-[11px] font-medium text-[#5E5365] dark:text-[#CC8B79] bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md">
@@ -608,14 +613,20 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span
-                            className={`inline-block text-[11px] font-black uppercase px-2 py-0.5 rounded-md border ${getSeverityBadge(
-                              fnd.severity
-                            )}`}
-                          >
-                            Severidad: {fnd.severity}
-                          </span>
-                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-block text-[11px] font-black uppercase px-2 py-0.5 rounded-md border ${getSeverityBadge(
+                                fnd.severity
+                              )}`}
+                            >
+                              Severidad: {fnd.severity}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-medium">
+                              <Clock className="w-3 h-3 text-slate-400" />
+                              <span>{formatDateTime(fnd.createdAt)}</span>
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100 mt-1.5">
                             {fnd.title}
                           </h4>
                         </div>
@@ -636,16 +647,22 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                       )}
 
                       {fnd.photoUrl && (
-                        <div className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 max-w-xs group">
-                          <img
-                            src={fnd.photoUrl}
-                            alt={fnd.title}
-                            className="w-full h-36 object-cover cursor-pointer"
-                            onClick={() => setPreviewImageUrl(fnd.photoUrl!)}
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none text-white text-xs font-bold gap-1">
-                            <Eye className="w-4 h-4" /> Ver foto
+                        <div className="space-y-1">
+                          <div className="relative rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 max-w-xs group">
+                            <img
+                              src={fnd.photoUrl}
+                              alt={fnd.title}
+                              className="w-full h-36 object-cover cursor-pointer"
+                              onClick={() => setPreviewImageUrl(fnd.photoUrl!)}
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none text-white text-xs font-bold gap-1">
+                              <Eye className="w-4 h-4" /> Ver foto
+                            </div>
                           </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            <span>Foto subida: {formatDateTime(fnd.createdAt)}</span>
+                          </p>
                         </div>
                       )}
                     </div>
@@ -687,27 +704,35 @@ export const InspectionDetailModal: React.FC<InspectionDetailModalProps> = ({
                   {inspection.evidences.map((evi) => (
                     <div
                       key={evi.id}
-                      className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 aspect-square shadow-xs"
+                      className="group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shadow-xs flex flex-col"
                     >
-                      <img
-                        src={evi.photoUrl}
-                        alt="Evidencia"
-                        className="w-full h-full object-cover cursor-pointer"
-                        onClick={() => setPreviewImageUrl(evi.photoUrl)}
-                      />
-                      {evi.caption && (
-                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2 text-white text-[11px] font-medium truncate">
-                          {evi.caption}
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEvidence(evi.id)}
-                        className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-lg opacity-90 hover:opacity-100 shadow-md active:scale-90 transition-all"
-                        title="Eliminar foto"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="relative aspect-video sm:aspect-square bg-slate-900 overflow-hidden">
+                        <img
+                          src={evi.photoUrl}
+                          alt="Evidencia"
+                          className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                          onClick={() => setPreviewImageUrl(evi.photoUrl)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEvidence(evi.id)}
+                          className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-lg opacity-90 hover:opacity-100 shadow-md active:scale-90 transition-all"
+                          title="Eliminar foto"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="p-2 space-y-1 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
+                        {evi.caption && (
+                          <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                            {evi.caption}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate">Subida: {formatDateTime(evi.createdAt)}</span>
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>

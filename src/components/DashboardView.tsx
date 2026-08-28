@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Inspection, InspectionType } from '../types';
 import { CompliancePieChart } from './CompliancePieChart';
+import { getInspectionFormattedTime } from '../utils/formatters';
 
 interface DashboardViewProps {
   inspections: Inspection[];
@@ -237,6 +238,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </h4>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                       {insp.faena} · {insp.location}
+                    </p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
+                      <span>{insp.date}</span>
+                      <span>·</span>
+                      <Clock className="w-3 h-3" />
+                      <span>{getInspectionFormattedTime(insp)}</span>
                     </p>
                   </div>
                 </div>
