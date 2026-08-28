@@ -639,7 +639,18 @@ export async function deleteInspectionFromSupabase(id: string): Promise<{
 // SUPABASE STORAGE (EVIDENCIAS MULTIMEDIA Y REPORTES PDF)
 // -------------------------------------------------------------
 
-export const MULTIMEDIA_BUCKET_NAME = 'evidencias-multimedia';
+export const MULTIMEDIA_BUCKET_NAME = 'evidencia-multimedia';
+export const ALT_MULTIMEDIA_BUCKET_NAME = 'evidencias-multimedia';
+
+let resolvedBucketName = 'evidencia-multimedia';
+
+export function getActiveBucketName(): string {
+  return resolvedBucketName;
+}
+
+export function setActiveBucketName(name: string): void {
+  resolvedBucketName = name;
+}
 
 /**
  * Converts a Base64 / Data URL to a native JavaScript Blob with MIME detection.
@@ -711,9 +722,10 @@ export async function uploadToMultimediaStorage(
 
     // Clean file path (remove leading slashes)
     const cleanPath = filePath.replace(/^\/+/, '');
+    const targetBucket = getActiveBucketName();
 
     const { data: _uploadData, error: uploadError } = await client.storage
-      .from(MULTIMEDIA_BUCKET_NAME)
+      .from(targetBucket)
       .upload(cleanPath, fileBody, {
         contentType,
         upsert: true,
@@ -721,13 +733,29 @@ export async function uploadToMultimediaStorage(
       });
 
     if (uploadError) {
-      console.warn(`Error uploading to ${MULTIMEDIA_BUCKET_NAME}/${cleanPath}:`, uploadError.message);
+      // If failed on primary bucket, try alternative bucket name if available
+      const altBucket = targetBucket === MULTIMEDIA_BUCKET_NAME ? ALT_MULTIMEDIA_BUCKET_NAME : MULTIMEDIA_BUCKET_NAME;
+      const { error: retryError } = await client.storage
+        .from(altBucket)
+        .upload(cleanPath, fileBody, {
+          contentType,
+          upsert: true,
+          cacheControl: '3600'
+        });
+
+      if (!retryError) {
+        setActiveBucketName(altBucket);
+        const { data: altUrlData } = client.storage.from(altBucket).getPublicUrl(cleanPath);
+        return { publicUrl: altUrlData.publicUrl, error: null };
+      }
+
+      console.warn(`Error uploading to ${targetBucket}/${cleanPath}:`, uploadError.message);
       return { publicUrl: null, error: uploadError.message };
     }
 
     // Get public URL
     const { data: urlData } = client.storage
-      .from(MULTIMEDIA_BUCKET_NAME)
+      .from(targetBucket)
       .getPublicUrl(cleanPath);
 
     return { publicUrl: urlData.publicUrl, error: null };
@@ -869,8 +897,9 @@ export async function testSupabaseStorageConnection(): Promise<{
       };
     }
 
-    const bucketFound = buckets?.some(
-      (b) => b.name === MULTIMEDIA_BUCKET_NAME || b.id === MULTIMEDIA_BUCKET_NAME
+    const bucketFound = buckets?.find(
+      (b) => b.name === MULTIMEDIA_BUCKET_NAME || b.id === MULTIMEDIA_BUCKET_NAME ||
+             b.name === ALT_MULTIMEDIA_BUCKET_NAME || b.id === ALT_MULTIMEDIA_BUCKET_NAME
     );
 
     if (!bucketFound) {
@@ -881,10 +910,12 @@ export async function testSupabaseStorageConnection(): Promise<{
       };
     }
 
+    setActiveBucketName(bucketFound.name || bucketFound.id);
+
     return {
       success: true,
       bucketExists: true,
-      message: `Storage activo y bucket "${MULTIMEDIA_BUCKET_NAME}" verificado exitosamente.`
+      message: `Storage activo y bucket "${bucketFound.name || bucketFound.id}" verificado exitosamente.`
     };
   } catch (err: any) {
     return {
