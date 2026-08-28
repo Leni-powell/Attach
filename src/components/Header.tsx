@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Wifi,
   WifiOff,
@@ -6,7 +6,9 @@ import {
   Moon,
   Sun,
   Bell,
-  Search
+  Search,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { TabType, UserSession } from '../types';
 import { AttachEmblem } from './AttachLogo';
@@ -38,6 +40,31 @@ export const Header: React.FC<HeaderProps> = ({
   onGlobalSearchChange,
   onTriggerNotificationClick
 }) => {
+  // Live date and time ticker
+  const [currentDateTime, setCurrentDateTime] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Format date: e.g. "Viernes, 28 de agosto" or "28 ago 2026"
+  const formattedDate = currentDateTime.toLocaleDateString('es-CL', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
+  });
+
+  // Format time: e.g. "16:56:33 hrs" or "16:56 hrs"
+  const formattedTime = currentDateTime.toLocaleTimeString('es-CL', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
   const getTabTitle = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -58,8 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
       id="app-main-header"
       className="sticky top-0 z-30 h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 flex items-center justify-between shrink-0 shadow-xs transition-colors"
     >
-      {/* Left side: Mobile Brand + Tab Title + Status indicator */}
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+      {/* Left side: Mobile Brand + Tab Title + Live Date & Time + Status indicator */}
+      <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
         {/* Mobile-only logo */}
         <div className="flex md:hidden items-center gap-2 shrink-0">
           <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-xs">
@@ -70,6 +97,34 @@ export const Header: React.FC<HeaderProps> = ({
         <h2 className="text-base sm:text-xl font-bold text-slate-800 dark:text-slate-100 truncate">
           {getTabTitle()}
         </h2>
+
+        {/* Live Date & Time Display Badge in Top-Left */}
+        <div
+          id="header-live-datetime"
+          className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 text-slate-600 dark:text-slate-300 shrink-0 text-xs font-medium"
+          title="Fecha y hora actual del sistema"
+        >
+          <span className="flex items-center gap-1 text-slate-700 dark:text-slate-200 capitalize">
+            <Calendar className="w-3.5 h-3.5 text-[#5E5365] dark:text-[#CC8B79]" />
+            <span>{formattedDate}</span>
+          </span>
+          <span className="text-slate-300 dark:text-slate-600 font-normal">|</span>
+          <span className="flex items-center gap-1 font-bold text-[#5E5365] dark:text-[#CC8B79]">
+            <Clock className="w-3.5 h-3.5 text-[#5E5365] dark:text-[#CC8B79] animate-pulse" />
+            <span className="tabular-nums tracking-wide">{formattedTime} hrs</span>
+          </span>
+        </div>
+
+        {/* Mobile Date & Time (visible on smaller screens) */}
+        <div
+          className="flex sm:hidden items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-[#5E5365] dark:text-[#CC8B79] shrink-0"
+          title="Hora actual"
+        >
+          <Clock className="w-3 h-3 text-[#5E5365] dark:text-[#CC8B79]" />
+          <span className="tabular-nums">
+            {currentDateTime.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })}
+          </span>
+        </div>
 
         {/* Connection Status Pill badge */}
         <div
