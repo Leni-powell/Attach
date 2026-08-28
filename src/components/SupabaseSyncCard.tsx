@@ -30,6 +30,7 @@ import {
   fetchInspectionsFromSupabase,
   syncAllInspectionsToSupabase,
   migrateInspectionMultimediaToStorage,
+  getActiveBucketName,
   MULTIMEDIA_BUCKET_NAME,
   SUPABASE_SCHEMA_SQL
 } from '../lib/supabase';
@@ -271,12 +272,12 @@ export const SupabaseSyncCard: React.FC<SupabaseSyncCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-[#38303B] dark:text-slate-100">Storage de Evidencias Multimedia</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-[#BCD1DE] dark:border-slate-700">
-                {MULTIMEDIA_BUCKET_NAME}
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-300 dark:border-emerald-700">
+                {getActiveBucketName()}
               </span>
             </div>
             <p className="text-[11px] text-[#6B5F70] dark:text-slate-400 mt-0.5">
-              Fotos de hallazgos, evidencias en terreno, firmas de supervisores y copias de reportes PDF oficiales.
+              Fotos de hallazgos, evidencias en terreno, firmas y PDFs respaldados en bucket público CDN.
             </p>
           </div>
         </div>
