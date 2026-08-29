@@ -421,7 +421,7 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
           insp.id,
           insp.company,
           `${insp.faena}\n${insp.location}`,
-          insp.date,
+          `${insp.date}\n${getInspectionFormattedTime(insp)}`,
           `${completedChecks}/${totalChecks} (${checkPct}%)`,
           {
             content: statusTxt,
@@ -442,7 +442,7 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
       autoTable(doc, {
         startY: currentY,
         theme: 'grid',
-        head: [['Folio', 'Empresa', 'Faena / Ubicación', 'Fecha', 'Puntos Pauta', 'Estado', 'Hallazgos Registrados']],
+        head: [['Folio', 'Empresa', 'Faena / Ubicación', 'Fecha y Hora', 'Puntos Pauta', 'Estado', 'Hallazgos Registrados']],
         body: detailedRows,
         headStyles: { fillColor: cat.color, textColor: [255, 255, 255], fontStyle: 'bold' },
         styles: { fontSize: 7.5, cellPadding: 2 },
@@ -450,9 +450,9 @@ export function buildConsolidatedPdfDocument(inspections: Inspection[]): jsPDF {
           0: { cellWidth: 18, fontStyle: 'bold' },
           1: { cellWidth: 26 },
           2: { cellWidth: 32 },
-          3: { cellWidth: 18, halign: 'center' },
-          4: { cellWidth: 24, halign: 'center' },
-          5: { cellWidth: 22, halign: 'center' },
+          3: { cellWidth: 22, halign: 'center' },
+          4: { cellWidth: 22, halign: 'center' },
+          5: { cellWidth: 20, halign: 'center' },
           6: { cellWidth: 'auto' }
         },
         margin: { left: 14, right: 14 }
@@ -1200,7 +1200,7 @@ export function generateConsolidatedHtmlReport(inspections: Inspection[]): strin
               <td><b>${insp.id}</b></td>
               <td>${insp.company}</td>
               <td>${insp.faena} - ${insp.location}</td>
-              <td style="text-align:center;">${insp.date}</td>
+              <td style="text-align:center;">${insp.date}<br/><span style="font-size:9.5px;color:#87778c;font-weight:600;">${getInspectionFormattedTime(insp)}</span></td>
               <td style="text-align:center; font-weight:bold;">${doneChecks}/${totalChecks} (${pct}%)</td>
               <td style="text-align:center; font-weight:bold; color: ${
                 insp.status === 'completada' ? '#5C788A' : insp.status === 'vencida' ? '#965868' : '#5E5365'
@@ -1222,7 +1222,7 @@ export function generateConsolidatedHtmlReport(inspections: Inspection[]): strin
               <th style="width: 60px;">Folio</th>
               <th>Empresa</th>
               <th>Faena / Ubicación</th>
-              <th style="width: 75px; text-align:center;">Fecha</th>
+              <th style="width: 85px; text-align:center;">Fecha y Hora</th>
               <th style="width: 90px; text-align:center;">Cumplimiento</th>
               <th style="width: 85px; text-align:center;">Estado</th>
               <th>Hallazgos</th>

@@ -27,6 +27,7 @@ import {
   printInspectionReport
 } from '../utils/pdfExport';
 import { uploadPdfReportToStorage, getSupabaseConfig } from '../lib/supabase';
+import { getInspectionFormattedTime, formatDateTime } from '../utils/formatters';
 
 interface ReportExportModalProps {
   inspection: Inspection | null;
@@ -479,7 +480,7 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                                     <span className="text-[#6B5F70] dark:text-slate-400">{insp.faena}</span>
                                   </div>
                                   <div className="text-[11px] text-[#87778C]">
-                                    Ubicación: {insp.location} • Fecha: {insp.date} • {insp.findings.length} hallazgos
+                                    Ubicación: {insp.location} • Fecha/Hora: {insp.date} {getInspectionFormattedTime(insp)} • {insp.findings.length} hallazgos
                                   </div>
                                 </div>
 
@@ -651,11 +652,11 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                   </div>
                   <div className="text-right text-xs text-[#87778C]">
                     <p className="font-mono font-bold text-[#5E5365] dark:text-[#B2A2B7]">FOLIO: {currentIndividual.id}</p>
-                    <p>Fecha: {currentIndividual.date}</p>
+                    <p>Fecha/Hora: {currentIndividual.date} {getInspectionFormattedTime(currentIndividual)}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-[#E5DFDC] dark:border-slate-800 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 bg-white dark:bg-slate-900 p-3 rounded-xl border border-[#E5DFDC] dark:border-slate-800 text-xs">
                   <div>
                     <span className="text-[#87778C] font-semibold block">Empresa</span>
                     <span className="font-bold text-[#38303B] dark:text-white">{currentIndividual.company}</span>
@@ -667,6 +668,10 @@ export const ReportExportModal: React.FC<ReportExportModalProps> = ({
                   <div>
                     <span className="text-[#87778C] font-semibold block">Ubicación</span>
                     <span className="font-bold text-[#38303B] dark:text-white">{currentIndividual.location}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#87778C] font-semibold block">Fecha y Hora</span>
+                    <span className="font-bold text-[#38303B] dark:text-white">{currentIndividual.date} {getInspectionFormattedTime(currentIndividual)}</span>
                   </div>
                   <div>
                     <span className="text-[#87778C] font-semibold block">Estado</span>
